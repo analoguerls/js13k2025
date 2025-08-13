@@ -1,0 +1,30 @@
+{
+  "name": "js13k2025",
+  "version": "1.0.0",
+  "description": "js13k 2025 Entry",
+  "scripts": {
+    "build": "gulp build",
+    "watch": "gulp"
+  },
+  "type": "module",
+  "author": "Randall Spence",
+  "license": "MIT",
+  "dependencies": {
+    "kontra": "^10.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.33.0",
+    "gulp": "^4.0.2",
+    "gulp-check-filesize": "^2.0.1",
+    "gulp-clean-css": "^4.3.0",
+    "gulp-concat": "^2.6.1",
+    "gulp-html-replace": "^1.6.2",
+    "gulp-imagemin": "^9.1.0",
+    "gulp-minify-html": "^1.0.6",
+    "gulp-rimraf": "^1.0.0",
+    "gulp-terser": "^2.1.0",
+    "gulp-zip": "^6.1.0",
+    "rollup": "^4.46.2",
+    "rollup-plugin-kontra": "^1.0.1"
+  }
+}
