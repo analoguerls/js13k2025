@@ -1,4 +1,4 @@
-/// <binding BeforeBuild='runLocal' Clean='runLocal' />
+/// <binding BeforeBuild='copyToRoot' Clean='copyToRoot' />
 import checkFileSize from 'gulp-check-filesize';
 import concat from 'gulp-concat';
 import deleteFiles from 'gulp-rimraf';
@@ -28,11 +28,6 @@ const paths = {
 
 gulp.task('cleanDist', () => gulp.
     src('dist/**/*', {
-        read: false
-    }).pipe(deleteFiles()));
-
-gulp.task('cleanRoot', () => gulp.
-    src('wwwroot/**/*', {
         read: false
     }).pipe(deleteFiles()));
 
@@ -93,11 +88,6 @@ gulp.task('watch', () => {
     gulp.watch(paths.src.js, gulp.series('buildJS', 'zip'));
     gulp.watch(paths.src.images, gulp.series('optimizeImages', 'zip'));
 });
-
-gulp.task('runLocal', gulp.series(
-    'cleanRoot',
-    'copyToRoot'
-));
 
 gulp.task('default', gulp.series(
     'build',

@@ -1,17 +1,21 @@
-﻿/* global Image, window*/
-/* eslint-disable new-cap */
+﻿/* global Image, window */
+/* eslint-disable new-cap, no-extra-parens */
 import {
+    GameLoop,
     Sprite,
-    init
+    getPointer,
+    imageAssets,
+    init,
+    initPointer,
+    load,
+    setImagePath
 } from 'kontra';
 
 let
-    cat = null,
     zoomFactor = 1;
 const
     {
-        canvas,
-        context
+        canvas
     } = init('game'),
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
@@ -20,15 +24,15 @@ const
     MIN_ZOOM = 1,
     // Size of each tile in pixels
     TILE_SIZE = 16,
+    game = {},
     image = new Image(),
-    // eslint-disable-next-line no-extra-parens
+    pointerOffset = 10,
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
         // Calculate the zoom factor based on the window size and level dimensions
         const
             horizontalZoom = Math.floor(window.innerWidth / (LEVEL_WIDTH * TILE_SIZE)),
-            // eslint-disable-next-line no-extra-parens
             verticalZoom = Math.floor((window.innerHeight * 0.8) / (LEVEL_HEIGHT * TILE_SIZE));
 
         // Calculate the zoom factor based on the window size and level dimensions
@@ -38,38 +42,55 @@ const
         canvas.width = LEVEL_WIDTH * TILE_SIZE * zoomFactor;
     };
 
+// Initialize the pointer API
+initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
-// Disable image smoothing for pixel art
-context.imageSmoothingEnabled = false;
 // Update the zoom factor and canvas dimensions on window resize
 window.addEventListener('resize', () => {
     setZoomFactor();
-    if (cat) {
-        // Update the sprite size based on the new zoom factor
-        cat.setScale(zoomFactor);
-        cat.x = setPosition(canvas.width, cat.width);
-        cat.y = setPosition(canvas.height, cat.height);
-        cat.render();
-    }
 });
 
-// Load the image and create a sprite
-image.src = 'images/cat.png';
-image.onload = function () {
-    cat = Sprite({
-        image,
-        render () {
-            // Disable image smoothing for pixel art
-            this.context.imageSmoothingEnabled = false;
-            //  Draw the sprite as usual
-            this.draw();
-        },
-        x: setPosition(canvas.width, image.width),
-        y: setPosition(canvas.height, image.height)
-    });
+setImagePath('images/');
+load('cat.png').then(() => {
+    const
+        cat = Sprite({
+            image: imageAssets.cat,
+            render () {
+                // Disable image smoothing for pixel art
+                this.context.imageSmoothingEnabled = false;
+                this.setScale(zoomFactor);
+                // Draw the sprite as usual
+                this.draw();
+            },
+            x: setPosition(canvas.width, image.width),
+            y: setPosition(canvas.height, image.height)
+        }),
+        point = Sprite({
+            color: 'red',
+            radius: 3,
+            render () {
+                this.context.fillStyle = this.color;
+                this.context.beginPath();
+                this.context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                this.context.fill();
+            },
+            x: 0,
+            y: 0
+        });
 
-    // Set the sprite size based on the zoom factor
-    cat.setScale(zoomFactor);
-    cat.render();
-};
+    game.loop = GameLoop({
+        render () {
+            cat.render();
+            point.render();
+        },
+        update () {
+            const pointer = getPointer();
+
+            // Position the point directly above the pointer
+            point.x = pointer.x / 2;
+            point.y = (pointer.y / 2) - pointerOffset;
+        }
+    });
+    game.loop.start();
+});
