@@ -1,5 +1,5 @@
 /* global window */
-/* eslint-disable new-cap, no-extra-parens */
+/* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
     Sprite,
@@ -49,6 +49,10 @@ setZoomFactor();
 setImagePath('images/');
 load('cat.png').then(() => {
     const
+        // Base distances in tile units
+        BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
+        BASE_MAX_FOLLOW_DISTANCE = 6 * TILE_SIZE,
+        BASE_MIN_DISTANCE = 0.125 * TILE_SIZE,
         cat = Sprite({
             image: imageAssets.cat,
             render () {
@@ -57,6 +61,57 @@ load('cat.png').then(() => {
                 this.setScale(zoomFactor);
                 // Draw the sprite as usual
                 this.draw();
+            },
+            scaled () {
+                return {
+                    height: this.height * zoomFactor,
+                    width: this.width * zoomFactor
+                };
+            },
+            update () {
+                const
+                    // Scale distances according to zoom factor
+                    activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
+                    maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
+                    maxSpeed = 5,
+                    minDistance = BASE_MIN_DISTANCE * zoomFactor,
+                    minSpeed = 0.5,
+                    pointer = getPointer(),
+                    scaled = this.scaled(),
+                    dx = (pointer.x / 2) - (this.x / 2), // eslint-disable-line sort-vars
+                    dy = (pointer.y / 2) - (this.y / 2), // eslint-disable-line sort-vars
+                    distance = Math.sqrt(dx * dx + dy * dy), // eslint-disable-line sort-vars
+                    directionX = dx / distance, // eslint-disable-line sort-vars
+                    directionY = dy / distance; // eslint-disable-line sort-vars
+
+                // Only move if we're far enough from the pointer BUT not too far
+                if (distance > minDistance && distance < maxFollowDistance) {
+                    // Adjust speed based on distance (closer -> faster)
+                    let speed = minSpeed;
+
+                    if (distance < activationDistance) {
+                        // Calculate normalized distance (0 = closest, 1 = farthest)
+                        const normalizedDistance = distance / activationDistance;
+
+                        /*
+                         * Use a non-linear curve for more aggressive acceleration at closer distances
+                         * Square the normalized distance to create a steeper curve
+                         * This will make the cat accelerate more dramatically as it approaches the pointer
+                         */
+                        speed = minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance);
+                    }
+
+                    // Update player position
+                    this.x += directionX * speed;
+                    this.y += directionY * speed;
+
+                    // Clamp x position (left and right bounds)
+                    this.x = Math.max(0, Math.min(canvas.width - scaled.width, this.x));
+
+                    // Clamp y position (top and bottom bounds)
+                    this.y = Math.max(0, Math.min(canvas.height - scaled.height, this.y));
+                }
+                // When close to pointer or too far, do nothing - stay at current position
             },
             x: setPosition(canvas.width, imageAssets.cat.width),
             y: setPosition(canvas.height, imageAssets.cat.height)
@@ -69,6 +124,13 @@ load('cat.png').then(() => {
                 this.context.beginPath();
                 this.context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 this.context.fill();
+            },
+            update () {
+                const pointer = getPointer();
+
+                // Position the point directly above the pointer
+                this.x = pointer.x / 2;
+                this.y = (pointer.y / 2) - pointerOffset;
             },
             x: 0,
             y: 0
@@ -90,11 +152,8 @@ load('cat.png').then(() => {
             point.render();
         },
         update () {
-            const pointer = getPointer();
-
-            // Position the point directly above the pointer
-            point.x = pointer.x / 2;
-            point.y = (pointer.y / 2) - pointerOffset;
+            cat.update();
+            point.update();
         }
     });
     // Start the game loop
