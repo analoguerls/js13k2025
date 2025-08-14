@@ -1,4 +1,4 @@
-/* global Image, window */
+/* global window */
 /* eslint-disable new-cap, no-extra-parens */
 import {
     GameLoop,
@@ -25,7 +25,6 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 16,
     game = {},
-    image = new Image(),
     pointerOffset = 10,
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
@@ -46,11 +45,7 @@ const
 initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
-// Update the zoom factor and canvas dimensions on window resize
-window.addEventListener('resize', () => {
-    setZoomFactor();
-});
-
+// Set image path and load assets
 setImagePath('images/');
 load('cat.png').then(() => {
     const
@@ -63,8 +58,8 @@ load('cat.png').then(() => {
                 // Draw the sprite as usual
                 this.draw();
             },
-            x: setPosition(canvas.width, image.width),
-            y: setPosition(canvas.height, image.height)
+            x: setPosition(canvas.width, imageAssets.cat.width),
+            y: setPosition(canvas.height, imageAssets.cat.height)
         }),
         point = Sprite({
             color: 'red',
@@ -79,6 +74,16 @@ load('cat.png').then(() => {
             y: 0
         });
 
+    // Update the zoom factor and canvas dimensions on window resize
+    window.addEventListener('resize', () => {
+        setZoomFactor();
+        if (cat) {
+            cat.x = setPosition(canvas.width, cat.width);
+            cat.y = setPosition(canvas.height, cat.height);
+        }
+    });
+
+    // Setup the game loop
     game.loop = GameLoop({
         render () {
             cat.render();
@@ -92,5 +97,6 @@ load('cat.png').then(() => {
             point.y = (pointer.y / 2) - pointerOffset;
         }
     });
+    // Start the game loop
     game.loop.start();
 });
