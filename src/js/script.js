@@ -78,11 +78,13 @@ load('cat.png').then(() => {
                     minSpeed = 0.5,
                     pointer = getPointer(),
                     scaled = this.scaled(),
-                    dx = (pointer.x / 2) - (this.x / 2), // eslint-disable-line sort-vars
-                    dy = (pointer.y / 2) - (this.y / 2), // eslint-disable-line sort-vars
-                    distance = Math.sqrt(dx * dx + dy * dy), // eslint-disable-line sort-vars
-                    directionX = dx / distance, // eslint-disable-line sort-vars
-                    directionY = dy / distance; // eslint-disable-line sort-vars
+                    /* eslint-disable sort-vars */
+                    dx = (pointer.x / 2) - (this.x / 2),
+                    dy = (pointer.y / 2) - (this.y / 2),
+                    distance = Math.sqrt(dx * dx + dy * dy),
+                    directionX = dx / distance,
+                    directionY = dy / distance;
+                    /* eslint-enable sort-vars */
 
                 // Only move if we're far enough from the pointer BUT not too far
                 if (distance > minDistance && distance < maxFollowDistance) {
