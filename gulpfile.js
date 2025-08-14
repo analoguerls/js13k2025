@@ -1,3 +1,4 @@
+/// <binding BeforeBuild='runLocal' Clean='runLocal' />
 import checkFileSize from 'gulp-check-filesize';
 import concat from 'gulp-concat';
 import deleteFiles from 'gulp-rimraf';
@@ -6,6 +7,7 @@ import imagemin from 'gulp-imagemin';
 import minifyCSS from 'gulp-clean-css';
 import minifyHTML from 'gulp-minify-html';
 import minifyJS from 'gulp-terser';
+import replace from 'gulp-replace';
 import replaceHTML from 'gulp-html-replace';
 import zip from 'gulp-zip';
 
@@ -36,6 +38,7 @@ gulp.task('cleanRoot', () => gulp.
 
 gulp.task('copyToRoot', () => gulp.
     src('src/**/*').
+    pipe(replace(/'kontra'/gu, '\'https://unpkg.com/kontra@10.0.2/kontra.mjs\'')).
     pipe(gulp.dest('wwwroot')));
 
 gulp.task('buildHTML', () => gulp.

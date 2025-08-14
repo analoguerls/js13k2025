@@ -21,6 +21,7 @@
     "gulp-html-replace": "^1.6.2",
     "gulp-imagemin": "^9.1.0",
     "gulp-minify-html": "^1.0.6",
+    "gulp-replace": "^1.1.4",
     "gulp-rimraf": "^1.0.0",
     "gulp-terser": "^2.1.0",
     "gulp-zip": "^6.1.0",

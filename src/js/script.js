@@ -1,15 +1,27 @@
-﻿/* global document, window*/
+﻿/* global Image, window*/
+/* eslint-disable new-cap */
+import {
+    Sprite,
+    init
+} from 'kontra';
+
 let zoomFactor = 1;
 const
+    {
+        canvas,
+        context
+    } = init('game'),
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
     LEVEL_WIDTH = 20,
+    // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
-    // TILE_SIZE is the size of each tile in pixels
+    // Size of each tile in pixels
     TILE_SIZE = 16,
-    canvas = document.getElementById('game'),
-    // Set the scaling factor for the game canvas
+    image = new Image(),
+    // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
+        // Calculate the zoom factor based on the window size and level dimensions
         const
             horizontalZoom = Math.floor(window.innerWidth / (LEVEL_WIDTH * TILE_SIZE)),
             // eslint-disable-next-line no-extra-parens
@@ -24,6 +36,23 @@ const
 
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
+// Disable image smoothing for pixel art
+context.imageSmoothingEnabled = false;
+// Update the zoom factor and canvas dimensions on window resize
 window.addEventListener('resize', () => {
     setZoomFactor();
 });
+
+// Load the image and create a sprite
+image.src = 'images/cat.png';
+image.onload = function () {
+    const sprite = Sprite({
+        image,
+        x: 100,
+        y: 100
+    });
+
+    // Set the sprite size based on the zoom factor
+    sprite.setScale(zoomFactor);
+    sprite.render();
+};
