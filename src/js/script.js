@@ -21,6 +21,8 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 16,
     image = new Image(),
+    // eslint-disable-next-line no-extra-parens
+    setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
         // Calculate the zoom factor based on the window size and level dimensions
@@ -46,6 +48,8 @@ window.addEventListener('resize', () => {
     if (cat) {
         // Update the sprite size based on the new zoom factor
         cat.setScale(zoomFactor);
+        cat.x = setPosition(canvas.width, cat.width);
+        cat.y = setPosition(canvas.height, cat.height);
         cat.render();
     }
 });
@@ -61,8 +65,8 @@ image.onload = function () {
             //  Draw the sprite as usual
             this.draw();
         },
-        x: 100,
-        y: 100
+        x: setPosition(canvas.width, image.width),
+        y: setPosition(canvas.height, image.height)
     });
 
     // Set the sprite size based on the zoom factor
