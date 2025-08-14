@@ -5,7 +5,9 @@ import {
     init
 } from 'kontra';
 
-let zoomFactor = 1;
+let
+    cat = null,
+    zoomFactor = 1;
 const
     {
         canvas,
@@ -41,18 +43,29 @@ context.imageSmoothingEnabled = false;
 // Update the zoom factor and canvas dimensions on window resize
 window.addEventListener('resize', () => {
     setZoomFactor();
+    if (cat) {
+        // Update the sprite size based on the new zoom factor
+        cat.setScale(zoomFactor);
+        cat.render();
+    }
 });
 
 // Load the image and create a sprite
 image.src = 'images/cat.png';
 image.onload = function () {
-    const sprite = Sprite({
+    cat = Sprite({
         image,
+        render () {
+            // Disable image smoothing for pixel art
+            this.context.imageSmoothingEnabled = false;
+            //  Draw the sprite as usual
+            this.draw();
+        },
         x: 100,
         y: 100
     });
 
     // Set the sprite size based on the zoom factor
-    sprite.setScale(zoomFactor);
-    sprite.render();
+    cat.setScale(zoomFactor);
+    cat.render();
 };
