@@ -47,18 +47,50 @@ initPointer();
 setZoomFactor();
 // Set image path and load assets
 setImagePath('images/');
-load('cat.png').then(() => {
+load('cat.png', 'idle.png', 'sleep.png').then(() => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
         BASE_MAX_FOLLOW_DISTANCE = 6 * TILE_SIZE,
         BASE_MIN_DISTANCE = 0.125 * TILE_SIZE,
+        // Closer distance required to re-engage the cat
+        BASE_REENGAGEMENT_DISTANCE = TILE_SIZE,
+        CAT_STATES = {
+            AWAKE: 'awake',
+            IDLE: 'idle',
+            SLEEPING: 'sleeping',
+            TIRED: 'tired'
+        },
+        // Time in seconds for idle behavior
+        IDLE_TIMEOUT = 15,
         cat = Sprite({
+            // Set initial facing direction (default is left)
+            facingRight: false,
+            // Time counter for idle behavior
+            idleTimer: 0,
             image: imageAssets.cat,
+            // Store the last pointer position to detect movement
+            lastPointerX: 0,
+            lastPointerY: 0,
+            // To track if the pointer is outside range
+            outsideRangeTimer: 0,
             render () {
                 // Disable image smoothing for pixel art
                 this.context.imageSmoothingEnabled = false;
                 this.setScale(zoomFactor);
+
+                // Use different images based on cat state
+                if (this.state === CAT_STATES.IDLE) {
+                    this.image = imageAssets.idle;
+                } else {
+                    this.image = imageAssets.cat;
+                }
+
+                // Set horizontal flip based on facingRight property
+                const originalWidth = this.image.width * zoomFactor;
+
+                this.width = this.facingRight ? originalWidth : -originalWidth;
+                console.log(`Cat width set to ${this.width} (facing ${this.facingRight ? 'right' : 'left'})`);
                 // Draw the sprite as usual
                 this.draw();
             },
@@ -68,7 +100,8 @@ load('cat.png').then(() => {
                     width: this.width * zoomFactor
                 };
             },
-            update () {
+            state: CAT_STATES.AWAKE,
+            update (dt) {
                 const
                     // Scale distances according to zoom factor
                     activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
@@ -77,12 +110,66 @@ load('cat.png').then(() => {
                     minDistance = BASE_MIN_DISTANCE * zoomFactor,
                     minSpeed = 0.5,
                     pointer = getPointer(),
+                    pointerMoved =
+                        pointer.x !== this.lastPointerX ||
+                        pointer.y !== this.lastPointerY,
+                    reengagementDistance = BASE_REENGAGEMENT_DISTANCE * zoomFactor,
                     scaled = this.scaled(),
-                    dx = (pointer.x / 2) - (this.x / 2), // eslint-disable-line sort-vars
-                    dy = (pointer.y / 2) - (this.y / 2), // eslint-disable-line sort-vars
-                    distance = Math.sqrt(dx * dx + dy * dy), // eslint-disable-line sort-vars
-                    directionX = dx / distance, // eslint-disable-line sort-vars
-                    directionY = dy / distance; // eslint-disable-line sort-vars
+                    /* eslint-disable sort-vars */
+                    dx = (pointer.x / 2) - (this.x / 2),
+                    dy = (pointer.y / 2) - (this.y / 2),
+                    distance = Math.sqrt(dx * dx + dy * dy),
+                    // Add safe check for division by zero
+                    directionX = distance ? dx / distance : 0,
+                    directionY = distance ? dy / distance : 0,
+                    isOutsideRange = distance >= maxFollowDistance;
+                    /* eslint-enable sort-vars */
+
+                // Update the last pointer position
+                this.lastPointerX = pointer.x;
+                this.lastPointerY = pointer.y;
+
+                /*
+                 * Update facing direction based on pointer position
+                 * If dx is positive, pointer is to the right of the cat
+                 * If dx is negative, pointer is to the left of the cat
+                 */
+                if (dx !== 0) {
+                    this.facingRight = dx > 0;
+                }
+
+                // If idle, require very close proximity to re-engage
+                if (this.state === CAT_STATES.IDLE) {
+                    if (distance < reengagementDistance && pointerMoved) {
+                        this.state = CAT_STATES.AWAKE;
+                        this.idleTimer = 0;
+                        this.outsideRangeTimer = 0;
+                    } else {
+                        // Cat stays idle
+                        return;
+                    }
+                }
+
+                // Increment idle timers
+                if (!pointerMoved || isOutsideRange) {
+                    this.idleTimer += dt;
+                    if (isOutsideRange) {
+                        this.outsideRangeTimer += dt;
+                    } else {
+                        this.outsideRangeTimer = 0;
+                    }
+                } else {
+                    // Reset timers if there's movement within range
+                    this.idleTimer = 0;
+                    this.outsideRangeTimer = 0;
+                }
+
+                // Check if cat should become idle
+                if (this.idleTimer >= IDLE_TIMEOUT || this.outsideRangeTimer >= IDLE_TIMEOUT) {
+                    this.state = CAT_STATES.IDLE;
+
+                    return;
+                }
 
                 // Only move if we're far enough from the pointer BUT not too far
                 if (distance > minDistance && distance < maxFollowDistance) {
@@ -101,7 +188,7 @@ load('cat.png').then(() => {
                         speed = minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance);
                     }
 
-                    // Update player position
+                    // Update cat's position
                     this.x += directionX * speed;
                     this.y += directionY * speed;
 
@@ -151,8 +238,8 @@ load('cat.png').then(() => {
             cat.render();
             point.render();
         },
-        update () {
-            cat.update();
+        update (dt) {
+            cat.update(dt);
             point.update();
         }
     });
