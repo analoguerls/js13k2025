@@ -103,7 +103,7 @@ load('cat.png').then(() => {
                         speed = minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance);
                     }
 
-                    // Update player position
+                    // Update cat's position
                     this.x += directionX * speed;
                     this.y += directionY * speed;
 
