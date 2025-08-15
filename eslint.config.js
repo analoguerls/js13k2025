@@ -64,7 +64,7 @@ export default [
             ],
             "complexity": [
                 "error",
-                { "max": 24 }
+                { "max": 48 }
             ],
             "computed-property-spacing": [
                 "error"

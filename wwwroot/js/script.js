@@ -1,4 +1,4 @@
-/* global window */
+/* global clearTimeout, setTimeout, window */
 /* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
@@ -12,20 +12,22 @@ import {
 } from 'https://unpkg.com/kontra@10.0.2/kontra.mjs';
 
 let
+    resizeTimeout = null,
     zoomFactor = 1;
 const
     {
         canvas
     } = init('game'),
+    DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
     LEVEL_WIDTH = 20,
     // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
+    POINTER_OFFSET = 4,
     // Size of each tile in pixels
     TILE_SIZE = 16,
     game = {},
-    pointerOffset = 10,
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
@@ -47,7 +49,7 @@ initPointer();
 setZoomFactor();
 // Set image path and load assets
 setImagePath('images/');
-load('cat.png', 'idle.png', 'sleep.png').then(() => {
+load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -62,8 +64,22 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
             TIRED: 'tired'
         },
         // Time in seconds for idle behavior
-        IDLE_TIMEOUT = 15,
+        IDLE_TIMEOUT = 10,
+        // Tiredness thresholds (in arbitrary energy units)
+        RECOVERY_RATE = 0.5,
+        // Sleep duration in seconds
+        SLEEP_DURATION = 15,
+        SLEEP_THRESHOLD = 300,
+        TIRED_FACTOR = 0.1,
+        // Threshold for tired state before sleeping
+        TIRED_THRESHOLD = 150,
         cat = Sprite({
+            current: {
+                facing: null,
+                state: null
+            },
+            // To track movement distance for tired meter
+            distanceMoved: 0,
             // Set initial facing direction (default is left)
             facingRight: false,
             // Time counter for idle behavior
@@ -79,19 +95,27 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
                 this.context.imageSmoothingEnabled = false;
                 this.setScale(zoomFactor);
 
-                // Use different images based on cat state
-                if (this.state === CAT_STATES.IDLE) {
-                    this.image = imageAssets.idle;
-                } else {
-                    this.image = imageAssets.cat;
+                // Only update image when state or facing direction changes
+                if (this.state !== this.current.state ||
+                    (this.state === CAT_STATES.AWAKE && this.facingRight !== this.current.facing)) {
+
+                    this.current.state = this.state;
+                    this.current.facing = this.facingRight;
+
+                    if (this.state === CAT_STATES.IDLE) {
+                        this.image = imageAssets.idle;
+                    } else if (this.state === CAT_STATES.SLEEPING) {
+                        this.image = imageAssets.sleep;
+                    } else if (this.state === CAT_STATES.TIRED) {
+                        this.image = imageAssets.tired;
+                    } else if (this.state === CAT_STATES.AWAKE && this.facingRight) {
+                        this.image = imageAssets.catRight;
+                    } else {
+                        this.image = imageAssets.cat;
+                    }
                 }
 
-                // Set horizontal flip based on facingRight property
-                const originalWidth = this.image.width * zoomFactor;
-
-                this.width = this.facingRight ? originalWidth : -originalWidth;
-                console.log(`Cat width set to ${this.width} (facing ${this.facingRight ? 'right' : 'left'})`);
-                // Draw the sprite as usual
+                // Draw the sprite
                 this.draw();
             },
             scaled () {
@@ -100,7 +124,11 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
                     width: this.width * zoomFactor
                 };
             },
+            // Sleep timer in seconds
+            sleepTimer: 0,
             state: CAT_STATES.AWAKE,
+            // Tiredness meter (0 to SLEEP_THRESHOLD)
+            tiredMeter: 0,
             update (dt) {
                 const
                     // Scale distances according to zoom factor
@@ -111,8 +139,11 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
                     minSpeed = 0.5,
                     pointer = getPointer(),
                     pointerMoved =
-                        pointer.x !== this.lastPointerX ||
-                        pointer.y !== this.lastPointerY,
+                        Math.abs(pointer.x - this.lastPointerX) > 0.5 ||
+                        Math.abs(pointer.y - this.lastPointerY) > 0.5,
+                    // Store previous position to calculate distance moved
+                    prevX = this.x,
+                    prevY = this.y,
                     reengagementDistance = BASE_REENGAGEMENT_DISTANCE * zoomFactor,
                     scaled = this.scaled(),
                     /* eslint-disable sort-vars */
@@ -129,6 +160,20 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
                 this.lastPointerX = pointer.x;
                 this.lastPointerY = pointer.y;
 
+                // Handle sleeping state
+                if (this.state === CAT_STATES.SLEEPING) {
+                    this.sleepTimer += dt;
+                    if (this.sleepTimer >= SLEEP_DURATION) {
+                        this.state = CAT_STATES.AWAKE;
+                        this.sleepTimer = 0;
+                        // Reset tired meter when waking up
+                        this.tiredMeter = 0;
+                    }
+
+                    // Don't process any other logic while sleeping
+                    return;
+                }
+
                 /*
                  * Update facing direction based on pointer position
                  * If dx is positive, pointer is to the right of the cat
@@ -138,14 +183,14 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
                     this.facingRight = dx > 0;
                 }
 
-                // If idle, require very close proximity to re-engage
-                if (this.state === CAT_STATES.IDLE) {
+                // If idle or tired, require very close proximity to re-engage
+                if (this.state === CAT_STATES.IDLE || this.state === CAT_STATES.TIRED) {
                     if (distance < reengagementDistance && pointerMoved) {
                         this.state = CAT_STATES.AWAKE;
                         this.idleTimer = 0;
                         this.outsideRangeTimer = 0;
                     } else {
-                        // Cat stays idle
+                        // Cat stays in current state
                         return;
                     }
                 }
@@ -197,8 +242,37 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
 
                     // Clamp y position (top and bottom bounds)
                     this.y = Math.max(0, Math.min(canvas.height - scaled.height, this.y));
+
+                    // Calculate actual distance moved if cat is not idle or asleep
+                    if (this.state !== CAT_STATES.IDLE && this.state !== CAT_STATES.SLEEPING) {
+                        const
+                            moveX = this.x - prevX,
+                            moveY = this.y - prevY,
+                            // eslint-disable-next-line sort-vars
+                            distanceMoved = Math.sqrt(moveX * moveX + moveY * moveY);
+
+                        /*
+                         * Increase tired meter based on movement distance
+                         * Using a factor to convert pixel distance to tired units
+                         */
+                        this.tiredMeter += distanceMoved * TIRED_FACTOR;
+
+                        // Check tired thresholds
+                        if (this.tiredMeter >= SLEEP_THRESHOLD) {
+                            this.state = CAT_STATES.SLEEPING;
+                            this.sleepTimer = 0;
+                        } else if (this.tiredMeter >= TIRED_THRESHOLD && this.state !== CAT_STATES.TIRED) {
+                            this.state = CAT_STATES.TIRED;
+                        }
+                    }
                 }
                 // When close to pointer or too far, do nothing - stay at current position
+
+                // Gradually reduce tired meter when not moving (only when not already tired or sleeping)
+                if (this.state === CAT_STATES.AWAKE && this.tiredMeter > 0) {
+                    // Recover energy at a slow rate when not moving
+                    this.tiredMeter = Math.max(0, this.tiredMeter - RECOVERY_RATE * dt);
+                }
             },
             x: setPosition(canvas.width, imageAssets.cat.width),
             y: setPosition(canvas.height, imageAssets.cat.height)
@@ -217,7 +291,7 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
 
                 // Position the point directly above the pointer
                 this.x = pointer.x / 2;
-                this.y = (pointer.y / 2) - pointerOffset;
+                this.y = (pointer.y / 2) - POINTER_OFFSET;
             },
             x: 0,
             y: 0
@@ -225,11 +299,15 @@ load('cat.png', 'idle.png', 'sleep.png').then(() => {
 
     // Update the zoom factor and canvas dimensions on window resize
     window.addEventListener('resize', () => {
-        setZoomFactor();
-        if (cat) {
-            cat.x = setPosition(canvas.width, cat.width);
-            cat.y = setPosition(canvas.height, cat.height);
-        }
+        clearTimeout(resizeTimeout);
+        // Debounce the resize event to avoid excessive calculations
+        resizeTimeout = setTimeout(() => {
+            setZoomFactor();
+            if (cat) {
+                cat.x = setPosition(canvas.width, cat.width);
+                cat.y = setPosition(canvas.height, cat.height);
+            }
+        }, DEBOUNCE_DELAY);
     });
 
     // Setup the game loop
