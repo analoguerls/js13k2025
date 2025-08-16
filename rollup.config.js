@@ -1,10 +1,11 @@
 ﻿import kontra from 'rollup-plugin-kontra';
 
 export default {
-    input: 'src/js/kontra.js',
+    input: 'src/js/script.js',
     output: {
-        file: 'src/js/kontra.bundle.js',
-        format: 'esm'
+        file: 'src/js/script.bundle.js',
+        format: 'iife',
+        name: 'bundle'
     },
     plugins: [
         kontra({
@@ -23,3 +24,5 @@ export default {
         })
     ]
 };
+
+// npx rollup -c

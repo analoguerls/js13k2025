@@ -1,15 +1,12 @@
-﻿/* global clearTimeout, setTimeout, window */
+﻿/* global Image, clearTimeout, setTimeout, window */
 /* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
     Sprite,
     getPointer,
-    imageAssets,
     init,
-    initPointer,
-    load,
-    setImagePath
-} from 'kontra';
+    initPointer
+} from '../../node_modules/kontra/kontra';
 
 let
     resizeTimeout = null,
@@ -28,6 +25,28 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 16,
     game = {},
+    // Function to load images asynchronously
+    load = (path, assets) => new Promise((resolve, reject) => {
+        const images = {};
+
+        // Create all image loading promises in one go
+        Promise.all(assets.map((name) => new Promise((resolveImage) => {
+            const img = new Image();
+
+            // Set successful handler first (most common case)
+            img.onload = () => {
+                // Store image with key derived from filename (without extension)
+                images[name.split('.')[0]] = img;
+                resolveImage();
+            };
+            // Handle error case
+            img.onerror = () => reject(new Error(`Failed to load: ${path}${name}`));
+            // Set source to trigger loading
+            img.src = `${path}${name}`;
+        }))).
+            then(() => resolve(images)).
+            catch(reject);
+    }),
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
@@ -48,8 +67,7 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-setImagePath('images/');
-load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() => {
+load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -58,9 +76,9 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
         // Closer distance required to re-engage the cat
         BASE_REENGAGEMENT_DISTANCE = TILE_SIZE,
         CAT_STATES = {
+            ASLEEP: 'asleep',
             AWAKE: 'awake',
             IDLE: 'idle',
-            SLEEPING: 'sleeping',
             TIRED: 'tired'
         },
         // Time in seconds for idle behavior
@@ -71,7 +89,7 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
         SLEEP_DURATION = 15,
         SLEEP_THRESHOLD = 300,
         TIRED_FACTOR = 0.1,
-        // Threshold for tired state before sleeping
+        // Threshold for tired state before falling asleep
         TIRED_THRESHOLD = 150,
         cat = Sprite({
             current: {
@@ -104,7 +122,7 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
 
                     if (this.state === CAT_STATES.IDLE) {
                         this.image = imageAssets.idle;
-                    } else if (this.state === CAT_STATES.SLEEPING) {
+                    } else if (this.state === CAT_STATES.ASLEEP) {
                         this.image = imageAssets.sleep;
                     } else if (this.state === CAT_STATES.TIRED) {
                         this.image = imageAssets.tired;
@@ -160,8 +178,8 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
                 this.lastPointerX = pointer.x;
                 this.lastPointerY = pointer.y;
 
-                // Handle sleeping state
-                if (this.state === CAT_STATES.SLEEPING) {
+                // Handle asleep state
+                if (this.state === CAT_STATES.ASLEEP) {
                     this.sleepTimer += dt;
                     if (this.sleepTimer >= SLEEP_DURATION) {
                         this.state = CAT_STATES.AWAKE;
@@ -170,7 +188,7 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
                         this.tiredMeter = 0;
                     }
 
-                    // Don't process any other logic while sleeping
+                    // Don't process any other logic while asleep
                     return;
                 }
 
@@ -244,7 +262,7 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
                     this.y = Math.max(0, Math.min(canvas.height - scaled.height, this.y));
 
                     // Calculate actual distance moved if cat is not idle or asleep
-                    if (this.state !== CAT_STATES.IDLE && this.state !== CAT_STATES.SLEEPING) {
+                    if (this.state !== CAT_STATES.IDLE && this.state !== CAT_STATES.ASLEEP) {
                         const
                             moveX = this.x - prevX,
                             moveY = this.y - prevY,
@@ -259,7 +277,7 @@ load('cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png').then(() =>
 
                         // Check tired thresholds
                         if (this.tiredMeter >= SLEEP_THRESHOLD) {
-                            this.state = CAT_STATES.SLEEPING;
+                            this.state = CAT_STATES.ASLEEP;
                             this.sleepTimer = 0;
                         } else if (this.tiredMeter >= TIRED_THRESHOLD && this.state !== CAT_STATES.TIRED) {
                             this.state = CAT_STATES.TIRED;

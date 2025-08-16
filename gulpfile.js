@@ -33,7 +33,7 @@ gulp.task('cleanDist', () => gulp.
 
 gulp.task('copyToRoot', () => gulp.
     src('src/**/*').
-    pipe(replace(/'kontra'/gu, '\'https://unpkg.com/kontra@10.0.2/kontra.mjs\'')).
+    pipe(replace(/'\.\.\/\.\.\/node_modules\/kontra\/kontra'/gu, '\'https://unpkg.com/kontra@10.0.2/kontra.mjs\'')).
     pipe(gulp.dest('wwwroot')));
 
 gulp.task('buildHTML', () => gulp.
