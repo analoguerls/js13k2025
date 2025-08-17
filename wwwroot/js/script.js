@@ -25,6 +25,7 @@ const
     POINTER_OFFSET = 4,
     // Size of each tile in pixels
     TILE_SIZE = 16,
+    clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
     game = {
         muted: false
     },
@@ -54,7 +55,7 @@ const
         let player = null;
 
         return {
-            start() {
+            start () {
                 if (player) {
                     player.start();
                 } else {
@@ -62,13 +63,14 @@ const
                     player.loop = true;
                 }
             },
-            stop() {
+            stop () {
                 player.stop();
                 player = null;
             }
         };
     }()),
     on = (element, eventType, callback) => element.addEventListener(eventType, callback),
+    recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
@@ -110,6 +112,8 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
         },
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 10,
+        // Time in seconds before cat falls asleep after being idle
+        IDLE_TO_SLEEP_TIMEOUT = 30,
         // Tiredness thresholds (in arbitrary energy units)
         RECOVERY_RATE = 1.5,
         // Sleep duration in seconds
@@ -127,6 +131,18 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
             distanceMoved: 0,
             // Set initial facing direction (default is left)
             facingRight: false,
+            getCatImage () {
+                switch (this.state) {
+                case CAT_STATES.IDLE:
+                    return imageAssets.idle;
+                case CAT_STATES.ASLEEP:
+                    return imageAssets.sleep;
+                case CAT_STATES.TIRED:
+                    return imageAssets.tired;
+                default:
+                    return this.facingRight ? imageAssets.catRight : imageAssets.cat;
+                }
+            },
             // Time counter for idle behavior
             idleTimer: 0,
             image: imageAssets.cat,
@@ -146,18 +162,7 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
 
                     this.current.state = this.state;
                     this.current.facing = this.facingRight;
-
-                    if (this.state === CAT_STATES.IDLE) {
-                        this.image = imageAssets.idle;
-                    } else if (this.state === CAT_STATES.ASLEEP) {
-                        this.image = imageAssets.sleep;
-                    } else if (this.state === CAT_STATES.TIRED) {
-                        this.image = imageAssets.tired;
-                    } else if (this.state === CAT_STATES.AWAKE && this.facingRight) {
-                        this.image = imageAssets.catRight;
-                    } else {
-                        this.image = imageAssets.cat;
-                    }
+                    this.image = this.getCatImage();
                 }
 
                 // Draw the sprite
@@ -168,6 +173,12 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                     height: this.height * zoomFactor,
                     width: this.width * zoomFactor
                 };
+            },
+            sleep () {
+                this.state = CAT_STATES.ASLEEP;
+                this.idleTimer = 0;
+                this.outsideRangeTimer = 0;
+                this.sleepTimer = 0;
             },
             // Sleep timer in seconds
             sleepTimer: 0,
@@ -198,12 +209,23 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                     // Add safe check for division by zero
                     directionX = distance ? dx / distance : 0,
                     directionY = distance ? dy / distance : 0,
+                    // Check if cat is engaged (in a position where it would move toward the pointer)
+                    isEngaged = distance > minDistance && distance < maxFollowDistance,
                     isOutsideRange = distance >= maxFollowDistance;
                     /* eslint-enable sort-vars */
 
                 // Update the last pointer position
                 this.lastPointerX = pointer.x;
                 this.lastPointerY = pointer.y;
+
+                /*
+                 * Update facing direction based on pointer position
+                 * If dx is positive, pointer is to the right of the cat
+                 * If dx is negative, pointer is to the left of the cat
+                 */
+                if (dx !== 0) {
+                    this.facingRight = dx > 0;
+                }
 
                 // @ifdef DEBUG
                 document.getElementById('state').innerHTML = cat.state;
@@ -228,32 +250,6 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                     return;
                 }
 
-                /*
-                 * Update facing direction based on pointer position
-                 * If dx is positive, pointer is to the right of the cat
-                 * If dx is negative, pointer is to the left of the cat
-                 */
-                if (dx !== 0) {
-                    this.facingRight = dx > 0;
-                }
-
-                // If idle or tired, require very close proximity to re-engage
-                if (this.state === CAT_STATES.IDLE || this.state === CAT_STATES.TIRED) {
-                    if (distance < reengagementDistance && pointerMoved) {
-                        this.state = CAT_STATES.AWAKE;
-                        this.idleTimer = 0;
-                        this.outsideRangeTimer = 0;
-                    } else {
-                        // Recover energy at a faster rate when idle
-                        if (this.state === CAT_STATES.IDLE && this.tiredMeter > 0) {
-                            // Recover energy at a faster rate when idle (can use a multiplier if desired)
-                            this.tiredMeter = Math.max(0, this.tiredMeter - RECOVERY_RATE * 1.5 * dt);
-                        }
-
-                        // Cat stays in current state
-                        return;
-                    }
-                }
 
                 // Increment idle timers
                 if (!pointerMoved || isOutsideRange) {
@@ -263,10 +259,45 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                     } else {
                         this.outsideRangeTimer = 0;
                     }
-                } else {
-                    // Reset timers if there's movement within range
+                } else if (isEngaged) {
+                    // Only reset timers if the cat is actually engaged with the pointer
                     this.idleTimer = 0;
                     this.outsideRangeTimer = 0;
+                }
+
+                // If idle or tired, require very close proximity to re-engage
+                if (this.state === CAT_STATES.IDLE || this.state === CAT_STATES.TIRED) {
+                    // Check if cat should fall asleep after being idle for too long
+                    if (this.state === CAT_STATES.IDLE && this.idleTimer >= IDLE_TO_SLEEP_TIMEOUT) {
+                        this.sleep();
+
+                        return;
+                    }
+
+                    if (distance < reengagementDistance && pointerMoved) {
+                        this.state = CAT_STATES.AWAKE;
+                        this.idleTimer = 0;
+                        this.outsideRangeTimer = 0;
+                    } else {
+                        // Check if cat should become idle (from tired)
+                        if (this.idleTimer >= IDLE_TIMEOUT || this.outsideRangeTimer >= IDLE_TIMEOUT) {
+                            this.state = CAT_STATES.IDLE;
+                        }
+
+                        // Handle tired meter recovery based on state
+                        if (this.tiredMeter > 0) {
+                            if (this.state === CAT_STATES.IDLE) {
+                                // Recover energy at a faster rate when idle
+                                this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt, 1.5);
+                            } else {
+                                // Recover energy at the normal rate for other states
+                                this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt);
+                            }
+                        }
+
+                        // Cat stays in current state
+                        return;
+                    }
                 }
 
                 // Check if cat should become idle
@@ -277,7 +308,7 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                 }
 
                 // Only move if we're far enough from the pointer BUT not too far
-                if (distance > minDistance && distance < maxFollowDistance) {
+                if (isEngaged) {
                     // Adjust speed based on distance (closer -> faster)
                     let speed = minSpeed;
 
@@ -293,15 +324,9 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                         speed = minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance);
                     }
 
-                    // Update cat's position
-                    this.x += directionX * speed;
-                    this.y += directionY * speed;
-
-                    // Clamp x position (left and right bounds)
-                    this.x = Math.max(0, Math.min(canvas.width - scaled.width, this.x));
-
-                    // Clamp y position (top and bottom bounds)
-                    this.y = Math.max(0, Math.min(canvas.height - scaled.height, this.y));
+                    // Update cat's position and clamp to screen bounds
+                    this.x = clamp(this.x + directionX * speed, 0, canvas.width - scaled.width);
+                    this.y = clamp(this.y + directionY * speed, 0, canvas.height - scaled.height);
 
                     // Calculate actual distance moved if cat is not idle or asleep
                     if (this.state !== CAT_STATES.IDLE && this.state !== CAT_STATES.ASLEEP) {
@@ -319,8 +344,7 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
 
                         // Check tired thresholds
                         if (this.tiredMeter >= SLEEP_THRESHOLD) {
-                            this.state = CAT_STATES.ASLEEP;
-                            this.sleepTimer = 0;
+                            this.sleep();
                         } else if (this.tiredMeter >= TIRED_THRESHOLD && this.state !== CAT_STATES.TIRED) {
                             this.state = CAT_STATES.TIRED;
                         }
@@ -328,10 +352,10 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                 }
                 // When close to pointer or too far, do nothing - stay at current position
 
-                // Gradually reduce tired meter when not moving (only when not already tired or sleeping)
-                if (this.state === CAT_STATES.AWAKE && this.tiredMeter > 0) {
+                // Gradually reduce tired meter when not moving (only when not sleeping)
+                if (this.state !== CAT_STATES.ASLEEP && this.tiredMeter > 0) {
                     // Recover energy at a slow rate when not moving
-                    this.tiredMeter = Math.max(0, this.tiredMeter - RECOVERY_RATE * dt);
+                    this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt);
                 }
             },
             x: setPosition(canvas.width, imageAssets.cat.width),
