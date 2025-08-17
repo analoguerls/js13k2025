@@ -1,4 +1,4 @@
-﻿/* global Image, clearTimeout, setTimeout, window */
+﻿/* global document, Image, clearTimeout, setTimeout, window */
 /* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
@@ -7,6 +7,7 @@ import {
     init,
     initPointer
 } from '../../node_modules/kontra/kontra';
+import audio from './zz.js';
 
 let
     resizeTimeout = null,
@@ -14,7 +15,7 @@ let
 const
     {
         canvas
-    } = init('game'),
+    } = init(),
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
@@ -24,7 +25,9 @@ const
     POINTER_OFFSET = 4,
     // Size of each tile in pixels
     TILE_SIZE = 16,
-    game = {},
+    game = {
+        muted: false
+    },
     // Function to load images asynchronously
     load = (path, assets) => new Promise((resolve, reject) => {
         const images = {};
@@ -47,6 +50,25 @@ const
             then(() => resolve(images)).
             catch(reject);
     }),
+    music = (function () {
+        let player = null;
+
+        return {
+            start () {
+                if (player) {
+                    player.start();
+                } else {
+                    player = audio.zzfxP(...audio.song);
+                    player.loop = true;
+                }
+            },
+            stop () {
+                player.stop();
+                player = null;
+            }
+        };
+    }()),
+    on = (element, eventType, callback) => element.addEventListener(eventType, callback),
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = function () {
@@ -60,6 +82,11 @@ const
         // Set the canvas dimensions based on the zoom factor
         canvas.height = LEVEL_HEIGHT * TILE_SIZE * zoomFactor;
         canvas.width = LEVEL_WIDTH * TILE_SIZE * zoomFactor;
+    },
+    soundFx = (effect) => {
+        if (audio[effect]) {
+            audio.zzfxP(audio[effect]);
+        }
     };
 
 // Initialize the pointer API
@@ -316,7 +343,7 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png'
         });
 
     // Update the zoom factor and canvas dimensions on window resize
-    window.addEventListener('resize', () => {
+    on(window, 'resize', () => {
         clearTimeout(resizeTimeout);
         // Debounce the resize event to avoid excessive calculations
         resizeTimeout = setTimeout(() => {
@@ -339,6 +366,33 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png'
             point.update();
         }
     });
-    // Start the game loop
-    game.loop.start();
+
+    on(document, 'keyup', (event) => {
+        const key = event.key;
+
+        if (key === 'Escape' || key === 'Enter') {
+            if (game.loop.isStopped) {
+                game.loop.start();
+                if (!game.muted) {
+                    music.start();
+                }
+            } else {
+                game.loop.stop();
+                if (!game.muted) {
+                    music.stop();
+                }
+            }
+        }
+        if (key === 'm') {
+            game.muted = !game.muted;
+            if (game.muted) {
+                music.stop();
+            } else {
+                music.start();
+            }
+        }
+        if (key === 'e') {
+            soundFx('explosion');
+        }
+    });
 });
