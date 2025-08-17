@@ -7,7 +7,7 @@ import {
     init,
     initPointer
 } from 'https://unpkg.com/kontra@10.0.2/kontra.mjs';
-import audio from './zz.js';
+import audio from './zzFx.js';
 
 let
     resizeTimeout = null,
@@ -54,7 +54,7 @@ const
         let player = null;
 
         return {
-            start () {
+            start() {
                 if (player) {
                     player.start();
                 } else {
@@ -62,7 +62,7 @@ const
                     player.loop = true;
                 }
             },
-            stop () {
+            stop() {
                 player.stop();
                 player = null;
             }
@@ -94,7 +94,7 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png']).then((imageAssets) => {
+load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -111,7 +111,7 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png'
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 10,
         // Tiredness thresholds (in arbitrary energy units)
-        RECOVERY_RATE = 0.5,
+        RECOVERY_RATE = 1.5,
         // Sleep duration in seconds
         SLEEP_DURATION = 15,
         SLEEP_THRESHOLD = 300,
@@ -205,6 +205,15 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png'
                 this.lastPointerX = pointer.x;
                 this.lastPointerY = pointer.y;
 
+                // @ifdef DEBUG
+                document.getElementById('state').innerHTML = cat.state;
+                document.getElementById('distanceMoved').innerHTML = cat.distanceMoved.toFixed(2);
+                document.getElementById('idleTimer').innerHTML = cat.idleTimer.toFixed(2);
+                document.getElementById('outsideRangeTimer').innerHTML = cat.outsideRangeTimer.toFixed(2);
+                document.getElementById('sleepTimer').innerHTML = cat.sleepTimer.toFixed(2);
+                document.getElementById('tiredMeter').innerHTML = cat.tiredMeter.toFixed(2);
+                // @endif
+
                 // Handle asleep state
                 if (this.state === CAT_STATES.ASLEEP) {
                     this.sleepTimer += dt;
@@ -235,6 +244,12 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'tired.png', 'sleep.png'
                         this.idleTimer = 0;
                         this.outsideRangeTimer = 0;
                     } else {
+                        // Recover energy at a faster rate when idle
+                        if (this.state === CAT_STATES.IDLE && this.tiredMeter > 0) {
+                            // Recover energy at a faster rate when idle (can use a multiplier if desired)
+                            this.tiredMeter = Math.max(0, this.tiredMeter - RECOVERY_RATE * 1.5 * dt);
+                        }
+
                         // Cat stays in current state
                         return;
                     }

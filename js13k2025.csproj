@@ -18,20 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="wwwroot\css\style.css" />
-    <Content Remove="wwwroot\index.html" />
-    <Content Remove="wwwroot\js\script.js" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="dist\images\" />
+    <Folder Include="wwwroot\css\" />
+    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\js\" />
     <Folder Include="zip\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\css\style.css" />
-    <None Include="wwwroot\index.html" />
-    <None Include="wwwroot\js\script.js" />
   </ItemGroup>
 
 </Project>

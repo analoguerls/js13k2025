@@ -1,6 +1,7 @@
 body {
     align-items: center;
     background: #000;
+    color: #fff;
     display: flex;
     justify-content: center;
     min-height: 100vh;
@@ -12,3 +13,5 @@ body {
 canvas {
     background: #fff;
 }
+
+
