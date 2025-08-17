@@ -54,7 +54,7 @@ const
         let player = null;
 
         return {
-            start() {
+            start () {
                 if (player) {
                     player.start();
                 } else {
@@ -62,7 +62,7 @@ const
                     player.loop = true;
                 }
             },
-            stop() {
+            stop () {
                 player.stop();
                 player = null;
             }
