@@ -117,6 +117,8 @@ load('images/', [
             IDLE: 'idle',
             TIRED: 'tired'
         },
+        // Evolution constants
+        EVOLUTION_BASE_TIME = 15,
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 10,
         // Time in seconds before cat falls asleep after being idle
@@ -136,6 +138,17 @@ load('images/', [
             },
             // To track movement distance for tired meter
             distanceMoved: 0,
+            // Evolution properties
+            evolutionLevel: 1,
+            evolutionTargetTime: EVOLUTION_BASE_TIME,
+            evolutionTimer: 0,
+            evolve () {
+                this.evolutionLevel += 1;
+                // Use existing effect or add a specific evolution sound
+                soundFx('explosion');
+                this.evolutionTimer = 0;
+                this.evolutionTargetTime = EVOLUTION_BASE_TIME * this.evolutionLevel;
+            },
             // Set initial facing direction (default is left)
             facingRight: false,
             getCatImage () {
@@ -176,6 +189,20 @@ load('images/', [
 
                 // Draw the sprite
                 this.draw();
+
+                // Draw evolution progress bar if happiness is 100
+                if (this.happinessMeter >= 100) {
+                    const barWidth = (this.evolutionTimer / this.evolutionTargetTime) * this.width * zoomFactor;
+
+                    // Gold color with transparency
+                    this.context.fillStyle = 'rgba(255, 215, 0, 0.7)';
+                    this.context.fillRect(
+                        this.x,
+                        this.y - 10 * zoomFactor,
+                        barWidth,
+                        5 * zoomFactor
+                    );
+                }
             },
             scaled () {
                 return {
@@ -227,6 +254,16 @@ load('images/', [
                 this.lastPointerX = pointer.x;
                 this.lastPointerY = pointer.y;
 
+                // Evolution timer - only increment when happiness is at 100%
+                if (this.happinessMeter >= 100) {
+                    this.evolutionTimer += dt;
+
+                    // Check if evolution criteria is met
+                    if (this.evolutionTimer >= this.evolutionTargetTime) {
+                        this.evolve();
+                    }
+                }
+
                 /*
                  * Update facing direction based on pointer position
                  * If dx is positive, pointer is to the right of the cat
@@ -244,6 +281,8 @@ load('images/', [
                 document.getElementById('idleTimer').innerHTML = cat.idleTimer.toFixed(2);
                 document.getElementById('outsideRangeTimer').innerHTML = cat.outsideRangeTimer.toFixed(2);
                 document.getElementById('sleepTimer').innerHTML = cat.sleepTimer.toFixed(2);
+                document.getElementById('evolutionTimer').innerHTML = cat.evolutionTimer.toFixed(2);
+                document.getElementById('evolutionLevel').innerHTML = cat.evolutionLevel;
                 // @endif
 
                 // Handle asleep state
