@@ -212,6 +212,7 @@ load('images/', [
                 const
                     // Scale distances according to zoom factor
                     activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
+                    evolutionSpeedBoost = 1 + (this.evolutionLevel - 1) * 0.25,
                     maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                     maxSpeed = 5,
                     minDistance = BASE_MIN_DISTANCE * zoomFactor,
@@ -366,7 +367,7 @@ load('images/', [
                          * Square the normalized distance to create a steeper curve
                          * This will make the cat accelerate more dramatically as it approaches the pointer
                          */
-                        speed = minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance);
+                        speed = (minSpeed + (maxSpeed - minSpeed) * (1 - normalizedDistance * normalizedDistance)) * evolutionSpeedBoost;
                     }
 
                     // Update cat's position and clamp to screen bounds
