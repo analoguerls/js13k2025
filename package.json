@@ -4,7 +4,8 @@
   "description": "js13k 2025 Entry",
   "scripts": {
     "build": "gulp build",
-    "watch": "gulp"
+    "watch": "gulp",
+    "optimize-zip": "advzip -z zip/game.zip"
   },
   "type": "module",
   "author": "Randall Spence",
@@ -13,6 +14,7 @@
     "kontra": "^10.0.2"
   },
   "devDependencies": {
+    "advzip-bin": "^2.0.0",
     "eslint": "^9.33.0",
     "gulp": "^4.0.2",
     "gulp-check-filesize": "^2.0.1",

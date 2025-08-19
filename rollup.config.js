@@ -25,4 +25,4 @@ export default {
     ]
 };
 
-// npx rollup -c
+// Run npx rollup -c

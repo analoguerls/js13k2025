@@ -22,7 +22,7 @@ const
     LEVEL_WIDTH = 20,
     // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
-    POINTER_OFFSET = 4,
+    POINTER_OFFSET = 12,
     // Size of each tile in pixels
     TILE_SIZE = 16,
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
@@ -73,7 +73,7 @@ const
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
-    setZoomFactor = function () {
+    setZoomFactor = () => {
         // Calculate the zoom factor based on the window size and level dimensions
         const
             horizontalZoom = Math.floor(window.innerWidth / (LEVEL_WIDTH * TILE_SIZE)),
@@ -96,7 +96,14 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png']).then((imageAssets) => {
+load('images/', [
+    'cat.png',
+    'catRight.png',
+    'idle.png',
+    'pointer.webp',
+    'sleep.png',
+    'tired.png'
+]).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -113,15 +120,15 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 10,
         // Time in seconds before cat falls asleep after being idle
-        IDLE_TO_SLEEP_TIMEOUT = 30,
+        IDLE_TO_SLEEP_TIMEOUT = 20,
         // Tiredness thresholds (in arbitrary energy units)
         RECOVERY_RATE = 1.5,
         // Sleep duration in seconds
         SLEEP_DURATION = 15,
-        SLEEP_THRESHOLD = 300,
+        SLEEP_THRESHOLD = 500,
         TIRED_FACTOR = 0.1,
         // Threshold for tired state before falling asleep
-        TIRED_THRESHOLD = 150,
+        TIRED_THRESHOLD = 250,
         cat = Sprite({
             current: {
                 facing: null,
@@ -143,6 +150,8 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                     return this.facingRight ? imageAssets.catRight : imageAssets.cat;
                 }
             },
+            // Happiness meter (0 to HAPPINESS_MAX)
+            happinessMeter: 25,
             // Time counter for idle behavior
             idleTimer: 0,
             image: imageAssets.cat,
@@ -229,11 +238,12 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
 
                 // @ifdef DEBUG
                 document.getElementById('state').innerHTML = cat.state;
+                document.getElementById('happinessMeter').innerHTML = cat.happinessMeter.toFixed(2);
+                document.getElementById('tiredMeter').innerHTML = cat.tiredMeter.toFixed(2);
                 document.getElementById('distanceMoved').innerHTML = cat.distanceMoved.toFixed(2);
                 document.getElementById('idleTimer').innerHTML = cat.idleTimer.toFixed(2);
                 document.getElementById('outsideRangeTimer').innerHTML = cat.outsideRangeTimer.toFixed(2);
                 document.getElementById('sleepTimer').innerHTML = cat.sleepTimer.toFixed(2);
-                document.getElementById('tiredMeter').innerHTML = cat.tiredMeter.toFixed(2);
                 // @endif
 
                 // Handle asleep state
@@ -244,6 +254,8 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                         this.sleepTimer = 0;
                         // Reset tired meter when waking up
                         this.tiredMeter = 0;
+                        // Decrease happiness by 10% upon waking
+                        this.happinessMeter *= 0.9;
                     }
 
                     // Don't process any other logic while asleep
@@ -295,6 +307,13 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                             }
                         }
 
+                        // Decrease happiness based on state
+                        if (this.state === CAT_STATES.IDLE) {
+                            this.happinessMeter = Math.max(0, this.happinessMeter - 2 * dt);
+                        } else if (this.state === CAT_STATES.TIRED) {
+                            this.happinessMeter = Math.max(0, this.happinessMeter - 4 * dt);
+                        }
+
                         // Cat stays in current state
                         return;
                     }
@@ -342,6 +361,11 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
                          */
                         this.tiredMeter += distanceMoved * TIRED_FACTOR;
 
+                        // Increase happiness when cat is moving and interacting with the pointer
+                        if (pointerMoved && distanceMoved > 0) {
+                            this.happinessMeter = Math.min(100, this.happinessMeter + 6 * dt);
+                        }
+
                         // Check tired thresholds
                         if (this.tiredMeter >= SLEEP_THRESHOLD) {
                             this.sleep();
@@ -362,20 +386,13 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
             y: setPosition(canvas.height, imageAssets.cat.height)
         }),
         point = Sprite({
-            color: 'red',
-            radius: 3,
-            render () {
-                this.context.fillStyle = this.color;
-                this.context.beginPath();
-                this.context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                this.context.fill();
-            },
+            image: imageAssets.pointer,
             update () {
                 const pointer = getPointer();
 
                 // Position the point directly above the pointer
-                this.x = pointer.x / 2;
-                this.y = (pointer.y / 2) - POINTER_OFFSET;
+                this.x = pointer.x;
+                this.y = pointer.y - POINTER_OFFSET;
             },
             x: 0,
             y: 0
@@ -426,12 +443,14 @@ load('images/', ['cat.png', 'catRight.png', 'idle.png', 'sleep.png', 'tired.png'
             game.muted = !game.muted;
             if (game.muted) {
                 music.stop();
-            } else {
+            } else if (game.loop.isStopped) {
                 music.start();
             }
         }
+        // @ifdef DEBUG
         if (key === 'e') {
             soundFx('explosion');
         }
+        // @endif
     });
 });
