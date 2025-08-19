@@ -278,13 +278,12 @@ load('images/', [
                 // Handle asleep state
                 if (this.state === CAT_STATES.ASLEEP) {
                     this.sleepTimer += dt;
+                    this.happinessMeter = Math.max(0, this.happinessMeter - dt);
                     if (this.sleepTimer >= SLEEP_DURATION) {
                         this.state = CAT_STATES.AWAKE;
                         this.sleepTimer = 0;
                         // Reset exhaust meter when waking up
-                        this.exhaustMeter = 0;
-                        // Decrease happiness by 10% upon waking
-                        this.happinessMeter *= 0.9;
+                        this.exhaustMeter = 50 * this.evolutionLevel;
                     }
 
                     // Don't process any other logic while asleep
