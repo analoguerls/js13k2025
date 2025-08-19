@@ -99,11 +99,11 @@ setZoomFactor();
 load('images/', [
     'cat.png',
     'catRight.png',
+    'exhausted.png',
     'food.webp',
     'idle.png',
     'pointer.webp',
-    'sleep.png',
-    'tired.png'
+    'sleep.png'
 ]).then((imageAssets) => {
     const
         // Base distances in tile units
@@ -115,29 +115,31 @@ load('images/', [
         CAT_STATES = {
             ASLEEP: 'asleep',
             AWAKE: 'awake',
-            IDLE: 'idle',
-            TIRED: 'tired'
+            EXHAUSTED: 'exhausted',
+            IDLE: 'idle'
         },
         // Evolution constants
         EVOLUTION_BASE_TIME = 15,
+        // Rate at which the cat gets tired from movement
+        EXHAUST_FACTOR = 0.1,
+        // Threshold for exhausted state before falling asleep
+        EXHAUST_THRESHOLD = 250,
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 10,
         // Time in seconds before cat falls asleep after being idle
         IDLE_TO_SLEEP_TIMEOUT = 20,
-        // Tiredness thresholds (in arbitrary energy units)
+        // Rate at which the exhaust meter recovers
         RECOVERY_RATE = 1.5,
         // Sleep duration in seconds
         SLEEP_DURATION = 15,
+        // Sleep threshold for the exhaust meter
         SLEEP_THRESHOLD = 500,
-        TIRED_FACTOR = 0.1,
-        // Threshold for tired state before falling asleep
-        TIRED_THRESHOLD = 250,
         cat = Sprite({
             current: {
                 facing: null,
                 state: null
             },
-            // To track movement distance for tired meter
+            // To track movement distance for exhaust meter
             distanceMoved: 0,
             // Evolution properties
             evolutionLevel: 1,
@@ -150,6 +152,8 @@ load('images/', [
                 this.evolutionTimer = 0;
                 this.evolutionTargetTime = EVOLUTION_BASE_TIME * this.evolutionLevel;
             },
+            // Exhaust meter (0 to SLEEP_THRESHOLD)
+            exhaustMeter: 0,
             // Set initial facing direction (default is left)
             facingRight: false,
             getCatImage () {
@@ -158,8 +162,8 @@ load('images/', [
                     return imageAssets.idle;
                 case CAT_STATES.ASLEEP:
                     return imageAssets.sleep;
-                case CAT_STATES.TIRED:
-                    return imageAssets.tired;
+                case CAT_STATES.EXHAUSTED:
+                    return imageAssets.exhausted;
                 default:
                     return this.facingRight ? imageAssets.catRight : imageAssets.cat;
                 }
@@ -206,8 +210,6 @@ load('images/', [
             // Sleep timer in seconds
             sleepTimer: 0,
             state: CAT_STATES.AWAKE,
-            // Tiredness meter (0 to SLEEP_THRESHOLD)
-            tiredMeter: 0,
             update (dt) {
                 const
                     // Scale distances according to zoom factor
@@ -264,7 +266,7 @@ load('images/', [
                 // @ifdef DEBUG
                 document.getElementById('state').innerHTML = cat.state;
                 document.getElementById('happinessMeter').innerHTML = cat.happinessMeter.toFixed(2);
-                document.getElementById('tiredMeter').innerHTML = cat.tiredMeter.toFixed(2);
+                document.getElementById('exhaustMeter').innerHTML = cat.exhaustMeter.toFixed(2);
                 document.getElementById('distanceMoved').innerHTML = cat.distanceMoved.toFixed(2);
                 document.getElementById('idleTimer').innerHTML = cat.idleTimer.toFixed(2);
                 document.getElementById('outsideRangeTimer').innerHTML = cat.outsideRangeTimer.toFixed(2);
@@ -279,8 +281,8 @@ load('images/', [
                     if (this.sleepTimer >= SLEEP_DURATION) {
                         this.state = CAT_STATES.AWAKE;
                         this.sleepTimer = 0;
-                        // Reset tired meter when waking up
-                        this.tiredMeter = 0;
+                        // Reset exhaust meter when waking up
+                        this.exhaustMeter = 0;
                         // Decrease happiness by 10% upon waking
                         this.happinessMeter *= 0.9;
                     }
@@ -304,8 +306,8 @@ load('images/', [
                     this.outsideRangeTimer = 0;
                 }
 
-                // If idle or tired, require very close proximity to re-engage
-                if (this.state === CAT_STATES.IDLE || this.state === CAT_STATES.TIRED) {
+                // If exhausted or idle, require very close proximity to re-engage
+                if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.IDLE) {
                     // Check if cat should fall asleep after being idle for too long
                     if (this.state === CAT_STATES.IDLE && this.idleTimer >= IDLE_TO_SLEEP_TIMEOUT) {
                         this.sleep();
@@ -318,26 +320,26 @@ load('images/', [
                         this.idleTimer = 0;
                         this.outsideRangeTimer = 0;
                     } else {
-                        // Check if cat should become idle (from tired)
+                        // Check if cat should become idle (from exhausted)
                         if (this.idleTimer >= IDLE_TIMEOUT || this.outsideRangeTimer >= IDLE_TIMEOUT) {
                             this.state = CAT_STATES.IDLE;
                         }
 
-                        // Handle tired meter recovery based on state
-                        if (this.tiredMeter > 0) {
+                        // Handle exhaust meter recovery based on state
+                        if (this.exhaustMeter > 0) {
                             if (this.state === CAT_STATES.IDLE) {
                                 // Recover energy at a faster rate when idle
-                                this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt, 1.5);
+                                this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt, 1.5);
                             } else {
                                 // Recover energy at the normal rate for other states
-                                this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt);
+                                this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt);
                             }
                         }
 
                         // Decrease happiness based on state
                         if (this.state === CAT_STATES.IDLE) {
                             this.happinessMeter = Math.max(0, this.happinessMeter - 2 * dt);
-                        } else if (this.state === CAT_STATES.TIRED) {
+                        } else if (this.state === CAT_STATES.EXHAUSTED) {
                             this.happinessMeter = Math.max(0, this.happinessMeter - 4 * dt);
                         }
 
@@ -383,30 +385,30 @@ load('images/', [
                             distanceMoved = Math.sqrt(moveX * moveX + moveY * moveY);
 
                         /*
-                         * Increase tired meter based on movement distance
-                         * Using a factor to convert pixel distance to tired units
+                         * Increase exhaust meter based on movement distance
+                         * Using a factor to convert pixel distance to exhaust units
                          */
-                        this.tiredMeter += distanceMoved * TIRED_FACTOR;
+                        this.exhaustMeter += distanceMoved * EXHAUST_FACTOR;
 
                         // Increase happiness when cat is moving and interacting with the pointer
                         if (pointerMoved && distanceMoved > 0) {
                             this.happinessMeter = Math.min(100, this.happinessMeter + 6 * dt);
                         }
 
-                        // Check tired thresholds
-                        if (this.tiredMeter >= SLEEP_THRESHOLD) {
+                        // Check exhaust thresholds
+                        if (this.exhaustMeter >= SLEEP_THRESHOLD) {
                             this.sleep();
-                        } else if (this.tiredMeter >= TIRED_THRESHOLD && this.state !== CAT_STATES.TIRED) {
-                            this.state = CAT_STATES.TIRED;
+                        } else if (this.exhaustMeter >= EXHAUST_THRESHOLD && this.state !== CAT_STATES.EXHAUSTED) {
+                            this.state = CAT_STATES.EXHAUSTED;
                         }
                     }
                 }
                 // When close to pointer or too far, do nothing - stay at current position
 
-                // Gradually reduce tired meter when not moving (only when not sleeping)
-                if (this.state !== CAT_STATES.ASLEEP && this.tiredMeter > 0) {
+                // Gradually reduce exhaust meter when not moving (only when not sleeping)
+                if (this.state !== CAT_STATES.ASLEEP && this.exhaustMeter > 0) {
                     // Recover energy at a slow rate when not moving
-                    this.tiredMeter = recoveryRateCalculation(this.tiredMeter, RECOVERY_RATE, dt);
+                    this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt);
                 }
             },
             x: setPosition(canvas.width, imageAssets.cat.width),
