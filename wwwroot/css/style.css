@@ -12,6 +12,11 @@ body {
 
 canvas {
     background: #fff;
+    border: 32px inset #F5F5DC;
 }
+    canvas.storm {
+        background: #000;
+        border-color: #000;
+    }
 
 
