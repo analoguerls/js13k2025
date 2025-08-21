@@ -86,6 +86,37 @@ const
         game.couch.x = margin + Math.random() * maxX;
         game.couch.y = margin + Math.random() * maxY;
     },
+    // Function to position the food bowl away from couch
+    positionFood = () => {
+        const
+            margin = TILE_SIZE * zoomFactor,
+            maxX = canvas.width - game.food.width * zoomFactor - margin,
+            maxY = canvas.height - game.food.height * zoomFactor - margin,
+            // Minimum distance from couch to food bowl
+            minDistance = TILE_SIZE * 4;
+        let
+            attempts = 0,
+            // eslint-disable-next-line init-declarations
+            foodX, foodY, toCouch;
+
+        // Try up to 20 times to find a valid position
+        do {
+            foodX = margin + Math.random() * maxX;
+            foodY = margin + Math.random() * maxY;
+
+            const
+                dx = foodX - game.couch.x,
+                dy = foodY - game.couch.y;
+
+            toCouch = Math.sqrt(dx * dx + dy * dy);
+            attempts += 1;
+        } while (toCouch < minDistance && attempts < 20);
+
+        // Set the position
+        game.food.x = foodX;
+        game.food.y = foodY;
+        game.food.isVisible = true;
+    },
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
@@ -123,18 +154,23 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
         CAT_STATES = {
             ASLEEP: 'asleep',
             AWAKE: 'awake',
+            EATING: 'eating',
             EXHAUSTED: 'exhausted',
             IDLE: 'idle',
             SEEKING_COUCH: 'seekingCouch'
         },
         // Distance threshold to consider cat has reached the couch
         COUCH_THRESHOLD = 10,
+        // Time in seconds for eating animation
+        EATING_DURATION = 3,
         // Evolution constants
         EVOLUTION_BASE_TIME = 15,
         // Rate at which the cat gets tired from movement
         EXHAUST_FACTOR = 0.1,
         // Threshold for exhausted state before falling asleep
-        EXHAUST_THRESHOLD = 250,
+        EXHAUST_THRESHOLD = 333,
+        // Distance threshold to consider cat has reached the food
+        FOOD_THRESHOLD = TILE_SIZE,
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
@@ -182,6 +218,11 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
                 frameRate: 10,
                 frames: [3, 4, 5, 6]
             },
+            eating: {
+                frameRate: 10,
+                // Temporarily use idle animations for eating
+                frames: [0, 1, 2]
+            },
             exhaustedleft: {
                 frameRate: 5,
                 frames: [9, 10]
@@ -210,27 +251,41 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             this.draw();
         }
     });
-
     // Position the couch randomly
     positionCouch();
+
+    // Food bowl sprite
+    game.food = Sprite({
+        image: imageAssets.food,
+        // Start invisible until exhausted
+        isVisible: false,
+        render () {
+            if (!this.isVisible) {
+                return;
+            }
+
+            // Disable image smoothing for pixel art
+            this.context.imageSmoothingEnabled = false;
+            this.setScale(zoomFactor);
+            this.draw();
+        }
+    });
 
     // Cat sprite
     game.cat = Sprite({
         animations: game.sheets.kitten.animations,
-        // Method to center the cat on the couch
-        centerOnCouch () {
+        // Method to position the cat on the couch or food bowl
+        centerOn (targetObject, xOffset = 0, yOffset = 0) {
             const
                 catScaled = this.scaled(),
-                couchScaled = {
-                    height: game.couch.height * zoomFactor,
-                    width: game.couch.width * zoomFactor
-                },
-                // Add small Y offset to make cat appear properly seated
-                yOffset = -2 * zoomFactor;
+                targetScaled = {
+                    height: targetObject.height * zoomFactor,
+                    width: targetObject.width * zoomFactor
+                };
 
-            // Position cat in the center of the couch
-            this.x = game.couch.x + (couchScaled.width - catScaled.width) / 2;
-            this.y = game.couch.y + (couchScaled.height - catScaled.height) / 2 + yOffset;
+            // Position cat in the center of the target object with optional offsets
+            this.x = targetObject.x + (targetScaled.width - catScaled.width) / 2 + xOffset;
+            this.y = targetObject.y + (targetScaled.height - catScaled.height) / 2 + yOffset;
         },
         current: {
             facing: null,
@@ -238,6 +293,8 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
         },
         // To track movement distance for exhaust meter
         distanceMoved: 0,
+        // Timer for eating animation
+        eatingTimer: 0,
         // Evolution properties
         evolutionLevel: 1,
         evolutionTargetTime: EVOLUTION_BASE_TIME,
@@ -265,7 +322,9 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             const suffix = this.facingRight ? 'right' : 'left';
             let state = 'asleep';
 
-            if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.SEEKING_COUCH) {
+            if (this.state === CAT_STATES.EATING) {
+                state = 'eating';
+            } else if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.SEEKING_COUCH) {
                 // eslint-disable-next-line prefer-template
                 state = 'exhausted' + suffix;
             } else if (this.state === CAT_STATES.IDLE) {
@@ -313,11 +372,24 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             this.idleTimer = 0;
             this.outsideRangeTimer = 0;
             this.sleepTimer = 0;
+            // Hide food
+            game.food.isVisible = false;
             // Center the cat on the couch for sleeping
+            this.centerOn(game.couch, 0, -2 * zoomFactor);
             this.centerOnCouch();
         },
         // Sleep timer in seconds
         sleepTimer: 0,
+        startEating () {
+            this.state = CAT_STATES.EATING;
+            this.idleTimer = 0;
+            this.outsideRangeTimer = 0;
+            this.eatingTimer = 0;
+            // Center the cat on the food bowl
+            this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
+            // Use existing sound or create a new one for eating
+            soundFx('explosion');
+        },
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
             this.idleTimer = 0;
@@ -350,7 +422,9 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
                 directionX = distance ? dx / distance : 0,
                 directionY = distance ? dy / distance : 0,
                 // Check if cat is engaged (in a position where it would move toward the pointer)
-                isEngaged = distance > minDistance && distance < maxFollowDistance && this.state !== CAT_STATES.SEEKING_COUCH,
+                isEngaged = distance > minDistance && distance < maxFollowDistance &&
+                           this.state !== CAT_STATES.SEEKING_COUCH &&
+                           this.state !== CAT_STATES.EATING,
                 isOutsideRange = distance >= maxFollowDistance;
             /* eslint-enable sort-vars */
 
@@ -381,7 +455,7 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
                 if (toCouchX !== 0) {
                     this.facingRight = toCouchX > 0;
                 }
-            } else if (dx !== 0) {
+            } else if (dx !== 0 && this.state !== CAT_STATES.EATING) {
                 this.facingRight = dx > 0;
             }
 
@@ -391,6 +465,29 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             document.getElementById('evolutionTimer').innerHTML = this.getEvolutionPercent().toFixed(0);
             document.getElementById('evolutionLevel').innerHTML = LEVEL[this.evolutionLevel];
             // @endif
+
+            // Handle eating state
+            if (this.state === CAT_STATES.EATING) {
+                this.eatingTimer += dt;
+
+                // Increase happiness while eating
+                this.happinessMeter = Math.min(100, this.happinessMeter + 5 * dt);
+
+                // Check if eating is complete
+                if (this.eatingTimer >= EATING_DURATION) {
+                    // Reset exhaust meter
+                    this.exhaustMeter = 0;
+                    // Return to awake state
+                    this.state = CAT_STATES.AWAKE;
+                    // Hide food bowl
+                    game.food.isVisible = false;
+                    // Sound effect when finished eating
+                    soundFx('explosion');
+                }
+
+                // Don't process any other logic while eating
+                return;
+            }
 
             // Handle seeking couch state
             if (this.state === CAT_STATES.SEEKING_COUCH) {
@@ -436,6 +533,21 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
 
                 // Don't process any other logic while asleep
                 return;
+            }
+
+            // Check if cat is close to food (when food is visible)
+            if (game.food.isVisible && this.state !== CAT_STATES.SEEKING_COUCH) {
+                const
+                    foodX = game.food.x - this.x,
+                    foodY = game.food.y - this.y,
+                    toFood = Math.sqrt(foodX * foodX + foodY * foodY);
+
+                // If cat is close enough to food, start eating
+                if (toFood <= FOOD_THRESHOLD) {
+                    this.startEating();
+
+                    return;
+                }
             }
 
             // Increment idle timers
@@ -548,6 +660,11 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
                         this.startSeekingCouch();
                     } else if (this.exhaustMeter >= EXHAUST_THRESHOLD && this.state !== CAT_STATES.EXHAUSTED) {
                         this.state = CAT_STATES.EXHAUSTED;
+
+                        // Show food bowl when cat becomes exhausted (if not already visible)
+                        if (!game.food.isVisible) {
+                            positionFood();
+                        }
                     }
                 }
             }
@@ -583,6 +700,10 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             // Render couch first so it appears behind the cat
             if (game.cat.evolutionLevel !== 3 || canvas.classList.contains('lightning')) {
                 game.couch.render();
+                // Render food bowl if visible
+                if (game.food.isVisible) {
+                    game.food.render();
+                }
             }
             game.cat.render();
             game.point.render();
