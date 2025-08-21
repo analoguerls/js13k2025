@@ -217,6 +217,21 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
     // Cat sprite
     game.cat = Sprite({
         animations: game.sheets.kitten.animations,
+        // Method to center the cat on the couch
+        centerOnCouch () {
+            const
+                catScaled = this.scaled(),
+                couchScaled = {
+                    height: game.couch.height * zoomFactor,
+                    width: game.couch.width * zoomFactor
+                },
+                // Add small Y offset to make cat appear properly seated
+                yOffset = -2 * zoomFactor;
+
+            // Position cat in the center of the couch
+            this.x = game.couch.x + (couchScaled.width - catScaled.width) / 2;
+            this.y = game.couch.y + (couchScaled.height - catScaled.height) / 2 + yOffset;
+        },
         current: {
             facing: null,
             state: null
@@ -298,6 +313,8 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             this.idleTimer = 0;
             this.outsideRangeTimer = 0;
             this.sleepTimer = 0;
+            // Center the cat on the couch for sleeping
+            this.centerOnCouch();
         },
         // Sleep timer in seconds
         sleepTimer: 0,
@@ -563,8 +580,10 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
     // Setup the game loop
     game.loop = GameLoop({
         render () {
-            // Render couch first (behind cat)
-            game.couch.render();
+            // Render couch first so it appears behind the cat
+            if (game.cat.evolutionLevel !== 3 || canvas.classList.contains('lightning')) {
+                game.couch.render();
+            }
             game.cat.render();
             game.point.render();
         },
