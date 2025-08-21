@@ -375,7 +375,7 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
             // Hide food
             game.food.isVisible = false;
             // Center the cat on the couch for sleeping
-            this.centerOn(game.couch, 0, -2 * zoomFactor);
+            this.centerOn(game.couch, 8 * zoomFactor, -2 * zoomFactor);
             this.centerOnCouch();
         },
         // Sleep timer in seconds
