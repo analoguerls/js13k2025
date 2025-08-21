@@ -143,7 +143,7 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((imageAssets) => {
+load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -680,20 +680,6 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
         y: setPosition(canvas.height, TILE_SIZE * zoomFactor)
     });
 
-    // Pointer sprite
-    game.point = Sprite({
-        image: imageAssets.pointer,
-        update () {
-            const pointer = getPointer();
-
-            // Position the point directly above the pointer
-            this.x = pointer.x;
-            this.y = pointer.y - POINTER_OFFSET;
-        },
-        x: 0,
-        y: 0
-    });
-
     // Setup the game loop
     game.loop = GameLoop({
         render () {
@@ -706,11 +692,9 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp', 'pointer.webp']).then((
                 }
             }
             game.cat.render();
-            game.point.render();
         },
         update (dt) {
             game.cat.update(dt);
-            game.point.update();
 
             // Add lightning effect for storm evolution
             if (game.cat.evolutionLevel === 3) {

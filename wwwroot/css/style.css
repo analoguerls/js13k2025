@@ -17,6 +17,7 @@ body {
 canvas {
     background: #fff url(../images/tile.webp);
     border: 32px inset #F5F5DC;
+    cursor: url(../images/pointer.webp), auto;
 }
 
     canvas.storm {
