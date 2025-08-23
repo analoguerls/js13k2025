@@ -15,7 +15,8 @@ let
     zoomFactor = 1;
 const
     {
-        canvas
+        canvas,
+        context
     } = init(),
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
@@ -23,7 +24,6 @@ const
     LEVEL_WIDTH = 20,
     // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
-    POINTER_OFFSET = 12,
     // Size of each tile in pixels
     TILE_SIZE = 32,
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
@@ -118,6 +118,77 @@ const
         game.food.isVisible = true;
     },
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
+    renderScene = (text, options = {}) => {
+        // Use setTimeout to ensure this runs after the current game loop render
+        setTimeout(() => {
+            const
+                borderThickness = 16,
+                lineHeight = 27,
+                // Split text by newline character
+                lines = text.split('\n'),
+                marginLeft = canvas.width * 0.4,
+                marginRight = canvas.width * 0.1,
+                maxTextWidth = canvas.width - marginLeft - marginRight,
+                rectHeight = canvas.height / 3,
+                rectY = (canvas.height - rectHeight) / 2,
+                // Calculate text position
+                totalTextHeight = lines.length * lineHeight;
+            // Calculate starting Y position to center all lines vertically
+            let textY = rectY + (rectHeight - totalTextHeight) / 2 + lineHeight / 2;
+
+            // Clear the canvas context
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            // Draw the main rectangle
+            context.fillStyle = '#F00';
+            context.fillRect(0, rectY, canvas.width, rectHeight);
+            // Draw the borders
+            context.fillStyle = '#EB4F47';
+            context.fillRect(0, rectY, canvas.width, borderThickness);
+            context.fillRect(0, rectY + rectHeight - borderThickness, canvas.width, borderThickness);
+
+            // Set text properties
+            context.fillStyle = '#FFF';
+            context.font = '20px Courier New';
+            context.textBaseline = 'middle';
+            // Render each line of text
+            lines.forEach((line) => {
+                context.fillText(line, marginLeft, textY, maxTextWidth);
+                textY += lineHeight;
+            });
+
+            // Render kitten if provided in options
+            if (options && typeof options.frameIndex === 'number') {
+                const
+                    // Get the animation sheet
+                    sheet = game.sheets[options.name];
+
+                if (sheet && sheet.image) {
+                    const
+                        // Position at the exact bottom of the rectangle (right at the border)
+                        bottomPosition = rectY + rectHeight,
+                        // Define scaling - 4 times the current zoom factor
+                        displayScale = zoomFactor * 8,
+                        // Calculate frame dimensions
+                        frameHeight = sheet.frame.height,
+                        frameIndex = options.frameIndex,
+                        frameWidth = sheet.frame.width,
+                        // Calculate the source coordinates in the spritesheet
+                        framesPerRow = Math.floor(sheet.image.width / frameWidth),
+                        sourceX = (frameIndex % framesPerRow) * frameWidth,
+                        sourceY = Math.floor(frameIndex / framesPerRow) * frameHeight;
+
+                    // Disable image smoothing for pixel art
+                    context.imageSmoothingEnabled = false;
+                    // Draw the frame at specified position with increased scale factor
+                    context.drawImage(
+                        sheet.image,
+                        sourceX, sourceY, frameWidth, frameHeight,
+                        0, bottomPosition - ((frameHeight - options.offset) * displayScale), frameWidth * displayScale, frameHeight * displayScale
+                    );
+                }
+            }
+        }, 0);
+    },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = () => {
@@ -300,19 +371,25 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
         evolutionTargetTime: EVOLUTION_BASE_TIME,
         evolutionTimer: 0,
         evolve () {
+            game.loop.stop();
             this.evolutionLevel += 1;
             // Use existing effect or add a specific evolution sound
             soundFx('explosion');
             this.evolutionTimer = 0;
             this.evolutionTargetTime = EVOLUTION_BASE_TIME * this.evolutionLevel;
-            if (this.evolutionLevel > 3) {
-                game.loop.stop();
-                canvas.classList.add('game-over');
-            } else if (this.evolutionLevel > 2) {
-                canvas.classList.add('storm');
-            }
             // Reposition couch for new level
             positionCouch();
+            if (this.evolutionLevel > 3) {
+                canvas.classList.remove('storm');
+                this.evolutionLevel = 1;
+                renderScene('Your cat has captured the red dot and ascended into the void!\nYou have reached the ultimate level of cat mastery!\nPress ENTER to play again...');
+            } else if (this.evolutionLevel > 2) {
+                canvas.classList.add('storm');
+                renderScene('Your cat grows closer to the void...\nNow you must weather the storm and capture the red dot to truly ascend!\nPress ENTER to continue...');
+            } else {
+                // Level 2
+                renderScene('Your kitten has grown into a cat!\nBut can you reach the legendary status of "the void"?\nPress ENTER to continue...');
+            }
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
         exhaustMeter: 0,
@@ -734,27 +811,38 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
         }
     });
 
+    renderScene('Can you raise your kitten into a cat\ncapable of capturing the power of the red dot?\nPress ENTER to begin...', {
+        frameIndex: 0,
+        name: 'kitten',
+        offset: 8
+    });
+
     on(document, 'keyup', (event) => {
         const key = event.key;
 
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
                 game.loop.start();
-                if (!game.muted) {
+                if (!game.muted && !game.musicPlaying) {
+                    game.musicPlaying = true;
                     music.start();
                 }
             } else {
                 game.loop.stop();
                 if (!game.muted) {
+                    game.musicPlaying = false;
                     music.stop();
                 }
+                renderScene('Game pawsed.\nPress ENTER to resume...');
             }
         }
         if (key === 'm') {
             game.muted = !game.muted;
             if (game.muted) {
+                game.musicPlaying = false;
                 music.stop();
-            } else if (game.loop.isStopped) {
+            } else if (game.loop.isStopped || !game.musicPlaying) {
+                game.musicPlaying = true;
                 music.start();
             }
         }
