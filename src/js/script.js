@@ -4,6 +4,7 @@ import {
     GameLoop,
     Sprite,
     SpriteSheet,
+    Text,
     getPointer,
     init,
     initPointer
@@ -15,8 +16,7 @@ let
     zoomFactor = 1;
 const
     {
-        canvas,
-        context
+        canvas
     } = init(),
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
@@ -118,76 +118,62 @@ const
         game.food.isVisible = true;
     },
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
-    renderScene = (text, options = {}) => {
-        // Use setTimeout to ensure this runs after the current game loop render
-        setTimeout(() => {
-            const
-                borderThickness = 16,
-                lineHeight = 27,
-                // Split text by newline character
-                lines = text.split('\n'),
-                marginLeft = canvas.width * 0.4,
-                marginRight = canvas.width * 0.1,
-                maxTextWidth = canvas.width - marginLeft - marginRight,
-                rectHeight = canvas.height / 3,
-                rectY = (canvas.height - rectHeight) / 2,
-                // Calculate text position
-                totalTextHeight = lines.length * lineHeight;
-            // Calculate starting Y position to center all lines vertically
-            let textY = rectY + (rectHeight - totalTextHeight) / 2 + lineHeight / 2;
+    renderScene = (text, options) => {
+        // Clear any existing objects in the game.scene
+        game.scene.objects = [];
 
-            // Clear the canvas context
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            // Draw the main rectangle
-            context.fillStyle = '#F00';
-            context.fillRect(0, rectY, canvas.width, rectHeight);
-            // Draw the borders
-            context.fillStyle = '#EB4F47';
-            context.fillRect(0, rectY, canvas.width, borderThickness);
-            context.fillRect(0, rectY + rectHeight - borderThickness, canvas.width, borderThickness);
-
-            // Set text properties
-            context.fillStyle = '#FFF';
-            context.font = '20px Courier New';
-            context.textBaseline = 'middle';
-            // Render each line of text
-            lines.forEach((line) => {
-                context.fillText(line, marginLeft, textY, maxTextWidth);
-                textY += lineHeight;
-            });
-
-            // Render kitten if provided in options
-            if (options && typeof options.frameIndex === 'number') {
+        game.scene.objects.push(Sprite({
+            color: '#F00',
+            render () {
+                this.width = canvas.width;
+                this.height = canvas.height / 3;
+                this.y = (canvas.height - this.height) / 2;
+                this.draw();
+            },
+            x: 0
+        }));
+        game.scene.objects.push(Text({
+            color: '#FFF',
+            lineHeight: 1.2,
+            render () {
                 const
-                    // Get the animation sheet
-                    sheet = game.sheets[options.name];
+                    fontSize = zoomFactor === 1 ? 11 : 20,
+                    lineHeight = fontSize * 1.2,
+                    lines = text.split('\n'),
+                    rectHeight = canvas.height / 3,
+                    rectY = (canvas.height - rectHeight) / 2,
+                    totalTextHeight = lines.length * lineHeight;
 
-                if (sheet && sheet.image) {
-                    const
-                        // Position at the exact bottom of the rectangle (right at the border)
-                        bottomPosition = rectY + rectHeight,
-                        // Define scaling - 4 times the current zoom factor
-                        displayScale = zoomFactor * 8,
-                        // Calculate frame dimensions
-                        frameHeight = sheet.frame.height,
-                        frameIndex = options.frameIndex,
-                        frameWidth = sheet.frame.width,
-                        // Calculate the source coordinates in the spritesheet
-                        framesPerRow = Math.floor(sheet.image.width / frameWidth),
-                        sourceX = (frameIndex % framesPerRow) * frameWidth,
-                        sourceY = Math.floor(frameIndex / framesPerRow) * frameHeight;
-
+                this.font = `${fontSize}px Courier New`;
+                this.width = canvas.width * 0.5;
+                this.x = canvas.width * 0.4;
+                this.y = rectY + (rectHeight - totalTextHeight) / 2;
+                this.bottom = this.y + this.height;
+                this.draw();
+            },
+            text,
+            textAlign: 'left'
+        }));
+        if (options) {
+            game.scene.objects.push(Sprite({
+                animations: game.sheets[options.sheet].animations,
+                playing: false,
+                render () {
                     // Disable image smoothing for pixel art
-                    context.imageSmoothingEnabled = false;
-                    // Draw the frame at specified position with increased scale factor
-                    context.drawImage(
-                        sheet.image,
-                        sourceX, sourceY, frameWidth, frameHeight,
-                        0, bottomPosition - ((frameHeight - options.offset) * displayScale), frameWidth * displayScale, frameHeight * displayScale
-                    );
+                    this.context.imageSmoothingEnabled = false;
+                    this.setScale(zoomFactor * 6);
+                    // Draw the sprite
+                    this.draw();
+                },
+                update (dt) {
+                    if (!this.playing) {
+                        this.playAnimation(options.animation);
+                    }
+                    this.advance(dt);
                 }
-            }
-        }, 0);
+            }));
+        }
+        game.scene.start();
     },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
@@ -214,7 +200,7 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => {
+load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -309,7 +295,19 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
         },
         frameHeight: 32,
         frameWidth: 32,
-        image: imageAssets.cat1
+        image: imageAssets.kitten
+    });
+
+    game.createSheet('void', {
+        animations: {
+            idle: {
+                frameRate: 2,
+                frames: [0, 1]
+            }
+        },
+        frameHeight: 32,
+        frameWidth: 32,
+        image: imageAssets.void
     });
 
     // Couch sprite
@@ -382,7 +380,7 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
             if (this.evolutionLevel > 3) {
                 canvas.classList.remove('storm');
                 this.evolutionLevel = 1;
-                renderScene('Your cat has captured the red dot and ascended into the void!\nYou have reached the ultimate level of cat mastery!\nPress ENTER to play again...');
+                renderScene('Your cat has captured the red dot!\nYou have ascended to the status of void kitty!\nPress ENTER to play again...');
             } else if (this.evolutionLevel > 2) {
                 canvas.classList.add('storm');
                 renderScene('Your cat grows closer to the void...\nNow you must weather the storm and capture the red dot to truly ascend!\nPress ENTER to continue...');
@@ -604,6 +602,8 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
                 if (this.sleepTimer >= SLEEP_DURATION) {
                     this.state = CAT_STATES.AWAKE;
                     this.sleepTimer = 0;
+                    // Reduce happiness by 10% when waking up from sleep
+                    this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
                     // Reset exhaust meter when waking up
                     this.exhaustMeter = 50 * this.evolutionLevel;
                 }
@@ -735,13 +735,10 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
                     if (this.exhaustMeter >= SLEEP_THRESHOLD) {
                         // Start seeking couch instead of immediately sleeping
                         this.startSeekingCouch();
+                    } else if (this.exhaustMeter >= 433 && !game.food.isVisible) {
+                        positionFood();
                     } else if (this.exhaustMeter >= EXHAUST_THRESHOLD && this.state !== CAT_STATES.EXHAUSTED) {
                         this.state = CAT_STATES.EXHAUSTED;
-
-                        // Show food bowl when cat becomes exhausted (if not already visible)
-                        if (!game.food.isVisible) {
-                            positionFood();
-                        }
                     }
                 }
             }
@@ -793,7 +790,7 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
                         canvas.classList.add('storm');
                         // Set cooldown until next potential lightning (3-8 seconds)
                         game.lightningTimer = 3 + Math.random() * 5;
-                    } else if (Math.random() < 0.1) {
+                    } else if (Math.random() < 0.2) {
                         // Create a lightning effect
                         canvas.classList.add('lightning');
                         canvas.classList.remove('storm');
@@ -811,15 +808,30 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
         }
     });
 
+    game.scene = GameLoop({
+        render () {
+            game.scene.objects.forEach((object) => {
+                object.render();
+            });
+        },
+        update () {
+            game.scene.objects.forEach((object) => {
+                object.update();
+            });
+        }
+    });
+
     renderScene('Can you raise your kitten into a cat\ncapable of capturing the power of the red dot?\nPress ENTER to begin...', {
-        frameIndex: 0,
-        name: 'kitten',
-        offset: 8
+        animation: 'idle',
+        sheet: 'kitten'
     });
 
     on(document, 'keyup', (event) => {
         const key = event.key;
 
+        if (!game.scene.isStopped) {
+            game.scene.stop();
+        }
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
                 game.loop.start();
@@ -833,7 +845,10 @@ load('images/', ['cat1.webp', 'couch.webp', 'food.webp']).then((imageAssets) => 
                     game.musicPlaying = false;
                     music.stop();
                 }
-                renderScene('Game pawsed.\nPress ENTER to resume...');
+                renderScene('Game pawsed.\nPress ENTER to resume...', {
+                    animation: 'idle',
+                    sheet: LEVEL[game.cat.evolutionLevel]
+                });
             }
         }
         if (key === 'm') {
