@@ -129,6 +129,7 @@ const
                 this.width = canvas.width;
                 this.height = canvas.height / 3;
                 this.y = (canvas.height - this.height) / 2;
+                this.bottom = this.y + this.height;
                 this.draw();
             },
             x: 0
@@ -149,12 +150,12 @@ const
                 this.width = canvas.width * 0.5;
                 this.x = canvas.width * 0.4;
                 this.y = rectY + (rectHeight - totalTextHeight) / 2;
-                this.bottom = this.y + this.height;
                 this.draw();
             },
             text,
             textAlign: 'left'
         }));
+
         if (options) {
             game.scene.objects.push(Sprite({
                 animations: game.sheets[options.sheet].animations,
@@ -163,6 +164,8 @@ const
                     // Disable image smoothing for pixel art
                     this.context.imageSmoothingEnabled = false;
                     this.setScale(zoomFactor * 6);
+                    // Set y postion at the bottom of the red rectangle
+                    this.y = game.scene.objects[0].bottom - (this.height * (zoomFactor * 6));
                     // Draw the sprite
                     this.draw();
                 },
@@ -302,6 +305,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         animations: {
             idle: {
                 frameRate: 2,
+                frames: [2, 3]
+            },
+            intro: {
+                frameRate: 2,
                 frames: [0, 1]
             }
         },
@@ -369,7 +376,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         evolutionTargetTime: EVOLUTION_BASE_TIME,
         evolutionTimer: 0,
         evolve () {
-            let text = 'Your kitten has grown into a cat!\nBut can you reach the legendary status of "the void"?\nPress ENTER to continue...';
+            let text = 'IT HAS BEEN EONS SINCE ONE OF OUR KIND\nHAS CLASPED THE RED DOT IN THIER CLAWS…\n\nPRESS ENTER TO CONTINUE…';
 
             game.loop.stop();
             this.evolutionLevel += 1;
@@ -382,10 +389,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             if (this.evolutionLevel > 2) {
                 game.over = true;
                 canvas.classList.remove('storm');
-                text = 'Your cat has captured the red dot!\nYou have ascended to the status of void kitty!\nPress ENTER to play again...';
+                text = 'AT LAST… THE RED DOT IS YOURS!\nRISE NOW, CHAMPION OF THE ORDER OF THE RED DOT!\n\nPRESS ENTER TO PLAY AGAIN…';
             } else if (this.evolutionLevel > 1) {
                 canvas.classList.add('storm');
-                text = 'Your cat grows closer to the void...\nNow you must weather the storm and capture the red dot to truly ascend!\nPress ENTER to continue...';
+                text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
             renderScene(text, {
                 animation: 'idle',
@@ -823,9 +830,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         }
     });
 
-    renderScene('Can you raise your kitten into a cat\ncapable of capturing the power of the red dot?\nPress ENTER to begin...', {
-        animation: 'idle',
-        sheet: 'kitten'
+    renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE RED DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
+        animation: 'intro',
+        sheet: 'void'
     });
 
     on(document, 'keyup', (event) => {
