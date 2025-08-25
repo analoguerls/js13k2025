@@ -32,6 +32,7 @@ const
             this.sheets[name] = SpriteSheet(config);
         },
         muted: false,
+        over: false,
         sheets: {}
     },
     // Function to load images asynchronously
@@ -232,12 +233,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
         IDLE_TO_SLEEP_TIMEOUT = 20,
-        LEVEL = {
-            1: 'kitten',
-            2: 'cat',
-            3: 'storm',
-            4: 'void'
-        },
+        LEVEL = ['kitten', 'cat', 'storm', 'void'],
         // Rate at which the exhaust meter recovers
         RECOVERY_RATE = 1.5,
         // Sleep duration in seconds
@@ -297,6 +293,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         frameWidth: 32,
         image: imageAssets.kitten
     });
+
+    // TODO: Replace with actual cat sprite sheet
+    game.sheets.cat = game.sheets.kitten;
+    game.sheets.storm = game.sheets.kitten;
 
     game.createSheet('void', {
         animations: {
@@ -365,29 +365,32 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         // Timer for eating animation
         eatingTimer: 0,
         // Evolution properties
-        evolutionLevel: 1,
+        evolutionLevel: 0,
         evolutionTargetTime: EVOLUTION_BASE_TIME,
         evolutionTimer: 0,
         evolve () {
+            let text = 'Your kitten has grown into a cat!\nBut can you reach the legendary status of "the void"?\nPress ENTER to continue...';
+
             game.loop.stop();
             this.evolutionLevel += 1;
             // Use existing effect or add a specific evolution sound
             soundFx('explosion');
             this.evolutionTimer = 0;
-            this.evolutionTargetTime = EVOLUTION_BASE_TIME * this.evolutionLevel;
+            this.evolutionTargetTime = EVOLUTION_BASE_TIME * (this.evolutionLevel + 1);
             // Reposition couch for new level
             positionCouch();
-            if (this.evolutionLevel > 3) {
+            if (this.evolutionLevel > 2) {
+                game.over = true;
                 canvas.classList.remove('storm');
-                this.evolutionLevel = 1;
-                renderScene('Your cat has captured the red dot!\nYou have ascended to the status of void kitty!\nPress ENTER to play again...');
-            } else if (this.evolutionLevel > 2) {
+                text = 'Your cat has captured the red dot!\nYou have ascended to the status of void kitty!\nPress ENTER to play again...';
+            } else if (this.evolutionLevel > 1) {
                 canvas.classList.add('storm');
-                renderScene('Your cat grows closer to the void...\nNow you must weather the storm and capture the red dot to truly ascend!\nPress ENTER to continue...');
-            } else {
-                // Level 2
-                renderScene('Your kitten has grown into a cat!\nBut can you reach the legendary status of "the void"?\nPress ENTER to continue...');
+                text = 'Your cat grows closer to the void...\nNow you must weather the storm and capture the red dot to truly ascend!\nPress ENTER to continue...';
             }
+            renderScene(text, {
+                animation: 'idle',
+                sheet: LEVEL[game.cat.evolutionLevel]
+            });
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
         exhaustMeter: 0,
@@ -451,7 +454,6 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             game.food.isVisible = false;
             // Center the cat on the couch for sleeping
             this.centerOn(game.couch, 8 * zoomFactor, -2 * zoomFactor);
-            this.centerOnCouch();
         },
         // Sleep timer in seconds
         sleepTimer: 0,
@@ -475,7 +477,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             const
                 // Scale distances according to zoom factor
                 activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
-                evolutionSpeedBoost = 1 + (this.evolutionLevel - 1) * 0.25,
+                evolutionSpeedBoost = 1 + this.evolutionLevel * 0.5,
                 maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                 maxSpeed = 5,
                 minDistance = BASE_MIN_DISTANCE * zoomFactor,
@@ -605,7 +607,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                     // Reduce happiness by 10% when waking up from sleep
                     this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
                     // Reset exhaust meter when waking up
-                    this.exhaustMeter = 50 * this.evolutionLevel;
+                    this.exhaustMeter = 50 * (this.evolutionLevel + 1);
                 }
 
                 // Don't process any other logic while asleep
@@ -758,7 +760,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
     game.loop = GameLoop({
         render () {
             // Render couch first so it appears behind the cat
-            if (game.cat.evolutionLevel !== 3 || canvas.classList.contains('lightning')) {
+            if (game.cat.evolutionLevel !== 2 || canvas.classList.contains('lightning')) {
                 game.couch.render();
                 // Render food bowl if visible
                 if (game.food.isVisible) {
@@ -771,7 +773,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             game.cat.update(dt);
 
             // Add lightning effect for storm evolution
-            if (game.cat.evolutionLevel === 3) {
+            if (game.cat.evolutionLevel === 2) {
                 // Initialize lightning properties if they don't exist
                 if (!game.lightningTimer) {
                     game.lightningTimer = 0;
@@ -834,6 +836,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         }
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
+                if (game.over) {
+                    game.over = false;
+                    game.cat.evolutionLevel = 0;
+                }
                 game.loop.start();
                 if (!game.muted && !game.musicPlaying) {
                     game.musicPlaying = true;
