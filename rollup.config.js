@@ -11,7 +11,9 @@ export default {
         kontra({
             gameObject: {
                 anchor: true,
+                radius: true,
                 rotation: true,
+                scale: true,
                 velocity: true
             },
             sprite: {
