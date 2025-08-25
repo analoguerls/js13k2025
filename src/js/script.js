@@ -389,7 +389,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             if (this.evolutionLevel > 2) {
                 game.over = true;
                 canvas.classList.remove('storm');
-                text = 'AT LAST… THE RED DOT IS YOURS!\nRISE NOW, CHAMPION OF THE ORDER OF THE RED DOT!\n\nPRESS ENTER TO PLAY AGAIN…';
+                text = 'AT LAST… THE RED DOT IS YOURS!\nRISE NOW, CHAMPION OF THE ORDER OF THE CRIMSON DOT!\n\nPRESS ENTER TO PLAY AGAIN…';
             } else if (this.evolutionLevel > 1) {
                 canvas.classList.add('storm');
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
@@ -830,7 +830,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         }
     });
 
-    renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE RED DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
+    renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE CRIMSON DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
         animation: 'intro',
         sheet: 'void'
     });
@@ -846,6 +846,11 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                 if (game.over) {
                     game.over = false;
                     game.cat.evolutionLevel = 0;
+                    game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
+                    game.cat.evolutionTimer = 0;
+                    game.cat.distanceMoved = 0;
+                    game.cat.exhaustMeter = 0;
+                    game.cat.happinessMeter = 25;
                 }
                 game.loop.start();
                 if (!game.muted && !game.musicPlaying) {
