@@ -118,6 +118,7 @@ const
         game.food.y = foodY;
         game.food.isVisible = true;
     },
+    query = (selector) => document.querySelector(selector),
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     renderScene = (text, options) => {
         // Clear any existing objects in the game.scene
@@ -303,11 +304,11 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
 
     game.createSheet('void', {
         animations: {
-            idle: {
+            ascended: {
                 frameRate: 2,
                 frames: [2, 3]
             },
-            intro: {
+            idle: {
                 frameRate: 2,
                 frames: [0, 1]
             }
@@ -380,8 +381,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
 
             game.loop.stop();
             this.evolutionLevel += 1;
-            // Use existing effect or add a specific evolution sound
-            soundFx('explosion');
+            soundFx('evolve');
             this.evolutionTimer = 0;
             this.evolutionTargetTime = EVOLUTION_BASE_TIME * (this.evolutionLevel + 1);
             // Reposition couch for new level
@@ -395,8 +395,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
             renderScene(text, {
-                animation: 'idle',
-                sheet: LEVEL[game.cat.evolutionLevel]
+                animation: game.over ? 'ascended' : 'idle',
+                sheet: 'void'
             });
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
@@ -430,7 +430,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             return Math.max(0, (100 - (this.exhaustMeter / 5)));
         },
         // Happiness meter (0 to HAPPINESS_MAX)
-        happinessMeter: 25,
+        happinessMeter: 0,
         // Time counter for idle behavior
         idleTimer: 0,
         // Store the last pointer position to detect movement
@@ -452,6 +452,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                 width: this.width * zoomFactor
             };
         },
+        setMeter (name, value) {
+            query(`#${name} b`).style.width = value;
+            query(`#${name} v`).innerHTML = value;
+        },
         sleep () {
             this.state = CAT_STATES.ASLEEP;
             this.idleTimer = 0;
@@ -471,8 +475,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             this.eatingTimer = 0;
             // Center the cat on the food bowl
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
-            // Use existing sound or create a new one for eating
-            soundFx('explosion');
+            this.eatingSoundTimer = 0;
+            soundFx('eat2');
         },
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
@@ -543,30 +547,37 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                 this.facingRight = dx > 0;
             }
 
-            // @ifdef DEBUG
-            document.getElementById('happinessMeter').innerHTML = this.happinessMeter.toFixed(0);
-            document.getElementById('exhaustMeter').innerHTML = this.getStaminaPercent().toFixed(0);
-            document.getElementById('evolutionTimer').innerHTML = this.getEvolutionPercent().toFixed(0);
-            document.getElementById('evolutionLevel').innerHTML = LEVEL[this.evolutionLevel];
-            // @endif
+            // Update meters
+            this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
+            this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
+            if (this.happinessMeter >= 100) {
+                query('#happiness t').innerHTML = 'Evolving…';
+                query('#happiness i').style.width = `${this.getEvolutionPercent().toFixed(0)}%`;
+            } else {
+                query('#happiness t').innerHTML = 'Happiness';
+            }
+            query('#level').innerHTML = LEVEL[this.evolutionLevel];
 
             // Handle eating state
             if (this.state === CAT_STATES.EATING) {
                 this.eatingTimer += dt;
-
                 // Increase happiness while eating
                 this.happinessMeter = Math.min(100, this.happinessMeter + 5 * dt);
 
                 // Check if eating is complete
                 if (this.eatingTimer >= EATING_DURATION) {
+                    this.eatingSoundTimer = 0;
                     // Reset exhaust meter
                     this.exhaustMeter = 0;
                     // Return to awake state
                     this.state = CAT_STATES.AWAKE;
                     // Hide food bowl
                     game.food.isVisible = false;
-                    // Sound effect when finished eating
-                    soundFx('explosion');
+                }
+                this.eatingSoundTimer += dt;
+                if (this.eatingSoundTimer >= 1) {
+                    soundFx('eat2');
+                    this.eatingSoundTimer = 0;
                 }
 
                 // Don't process any other logic while eating
@@ -831,7 +842,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
     });
 
     renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE CRIMSON DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
-        animation: 'intro',
+        animation: 'idle',
         sheet: 'void'
     });
 
