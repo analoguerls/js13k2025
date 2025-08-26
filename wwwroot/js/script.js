@@ -551,8 +551,11 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
             this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
             if (this.happinessMeter >= 100) {
+                const evolution = query('#happiness i');
+
                 query('#happiness t').innerHTML = 'Evolving…';
-                query('#happiness i').style.width = `${this.getEvolutionPercent().toFixed(0)}%`;
+                evolution.style.width = `${this.getEvolutionPercent().toFixed(0)}%`;
+                evolution.innerHTML = `${this.getEvolutionPercent().toFixed(0)}%`;
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }

@@ -84,5 +84,11 @@ li {
         }
 
         li a i {
-            background-color:#000;
+            background-color: #000;
+            border-right: 0;
+            color: #FFF;
+            font-size: 12px;
+            line-height: 14px;
+            overflow: hidden;
+            text-align: center;
         }
