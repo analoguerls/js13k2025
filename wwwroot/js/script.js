@@ -439,8 +439,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
-                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100))
-                : 0;
+                // eslint-disable-next-line prefer-template
+                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(0) + '%'
+                : '0%';
         },
         getStaminaPercent () {
             return Math.max(0, (100 - (this.exhaustMeter / 5)));
@@ -569,8 +570,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 const evolution = query('#happiness i');
 
                 query('#happiness t').innerHTML = 'Evolving…';
-                evolution.style.width = `${this.getEvolutionPercent().toFixed(0)}%`;
-                evolution.innerHTML = `${this.getEvolutionPercent().toFixed(0)}%`;
+                evolution.style.width = this.getEvolutionPercent();
+                evolution.innerHTML = this.getEvolutionPercent();
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }

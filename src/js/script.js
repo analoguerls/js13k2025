@@ -440,8 +440,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
                 // eslint-disable-next-line prefer-template
-                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(2) + '%'
-                : '0.00%';
+                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(0) + '%'
+                : '0%';
         },
         getStaminaPercent () {
             return Math.max(0, (100 - (this.exhaustMeter / 5)));
