@@ -188,6 +188,10 @@ const
         }));
         game.scene.start();
     },
+    resetTimers = (obj) => {
+        obj.idleTimer = 0;
+        obj.outsideRangeTimer = 0;
+    },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = () => {
@@ -435,8 +439,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
-                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100))
-                : 0;
+                // eslint-disable-next-line prefer-template
+                ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(2) + '%'
+                : '0.00%';
         },
         getStaminaPercent () {
             return Math.max(0, (100 - (this.exhaustMeter / 5)));
@@ -470,8 +475,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         sleep (centerOnCouch = true) {
             this.state = CAT_STATES.ASLEEP;
-            this.idleTimer = 0;
-            this.outsideRangeTimer = 0;
+            resetTimers(this);
             this.sleepTimer = 0;
             // Hide food
             game.food.isVisible = false;
@@ -485,8 +489,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         sleepTimer: 0,
         startEating () {
             this.state = CAT_STATES.EATING;
-            this.idleTimer = 0;
-            this.outsideRangeTimer = 0;
+            resetTimers(this);
             this.eatingTimer = 0;
             // Center the cat on the food bowl
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
@@ -495,8 +498,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
-            this.idleTimer = 0;
-            this.outsideRangeTimer = 0;
+            resetTimers(this);
         },
         state: CAT_STATES.AWAKE,
         update (dt) {
@@ -568,8 +570,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 const evolution = query('#happiness i');
 
                 query('#happiness t').innerHTML = 'Evolving…';
-                evolution.style.width = `${this.getEvolutionPercent().toFixed(0)}%`;
-                evolution.innerHTML = `${this.getEvolutionPercent().toFixed(0)}%`;
+                evolution.style.width = this.getEvolutionPercent();
+                evolution.innerHTML = this.getEvolutionPercent();
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }
@@ -675,8 +677,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 }
             } else if (isEngaged) {
                 // Only reset timers if the cat is actually engaged with the pointer
-                this.idleTimer = 0;
-                this.outsideRangeTimer = 0;
+                resetTimers(this);
             }
 
             // If exhausted or idle, require very close proximity to re-engage
@@ -691,8 +692,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 // Check if cat should re-engage
                 if (distance < reengagementDistance && pointerMoved) {
                     this.state = CAT_STATES.AWAKE;
-                    this.idleTimer = 0;
-                    this.outsideRangeTimer = 0;
+                    resetTimers(this);
                 } else {
                     // Check if cat should become idle (from exhausted)
                     if (this.idleTimer >= IDLE_TIMEOUT || this.outsideRangeTimer >= IDLE_TIMEOUT) {
