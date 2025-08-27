@@ -27,6 +27,12 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 32,
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
+    drawSprite = (sprite, scale = 1) => {
+        // Disable image smoothing for pixel art
+        sprite.context.imageSmoothingEnabled = false;
+        sprite.setScale(zoomFactor * scale);
+        sprite.draw();
+    },
     formatTime = (timeInSeconds) => {
         const
             minutes = Math.floor(timeInSeconds / 60),
@@ -171,13 +177,10 @@ const
             animations: game.sheets[options.sheet].animations,
             playing: false,
             render () {
-                // Disable image smoothing for pixel art
-                this.context.imageSmoothingEnabled = false;
-                this.setScale(zoomFactor * 6);
                 // Set y postion at the bottom of the red rectangle
                 this.y = game.scene.objects[0].bottom - (this.height * (zoomFactor * 6));
                 // Draw the sprite
-                this.draw();
+                drawSprite(this, 6);
             },
             update (dt) {
                 if (!this.playing) {
@@ -335,10 +338,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     game.couch = Sprite({
         image: imageAssets.couch,
         render () {
-            // Disable image smoothing for pixel art
-            this.context.imageSmoothingEnabled = false;
-            this.setScale(zoomFactor);
-            this.draw();
+            drawSprite(this);
         }
     });
     // Position the couch randomly
@@ -353,11 +353,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             if (!this.isVisible) {
                 return;
             }
-
-            // Disable image smoothing for pixel art
-            this.context.imageSmoothingEnabled = false;
-            this.setScale(zoomFactor);
-            this.draw();
+            drawSprite(this);
         }
     });
 
@@ -456,12 +452,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // To track if the pointer is outside range
         outsideRangeTimer: 0,
         render () {
-            // Disable image smoothing for pixel art
-            this.context.imageSmoothingEnabled = false;
-            this.setScale(zoomFactor);
-
-            // Draw the sprite
-            this.draw();
+            drawSprite(this);
         },
         scaled () {
             return {
