@@ -27,10 +27,10 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 32,
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
-    formatTime = (seconds) => {
+    formatTime = (timeInSeconds) => {
         const
-            minutes = Math.floor(seconds / 60),
-            seconds = Math.floor(seconds % 60);
+            minutes = Math.floor(timeInSeconds / 60),
+            seconds = Math.floor(timeInSeconds % 60);
 
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     },
