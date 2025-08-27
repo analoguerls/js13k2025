@@ -21,7 +21,7 @@ const
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
-    LEVEL_WIDTH = 20,
+    LEVEL_WIDTH = 22,
     // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
     // Size of each tile in pixels
@@ -159,14 +159,14 @@ const
             lineHeight: 1.2,
             render () {
                 const
-                    fontSize = zoomFactor === 1 ? 11 : 20,
+                    fontSize = zoomFactor === 1 ? 12 : 24,
                     lineHeight = fontSize * 1.2,
                     lines = text.split('\n'),
                     rectHeight = canvas.height / 3,
                     rectY = (canvas.height - rectHeight) / 2,
                     totalTextHeight = lines.length * lineHeight;
 
-                this.font = `${fontSize}px Courier New`;
+                this.font = `bold ${fontSize}px Courier New`;
                 this.width = canvas.width * 0.5;
                 this.x = canvas.width * 0.4;
                 this.y = rectY + (rectHeight - totalTextHeight) / 2;
@@ -488,7 +488,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.eatingSoundTimer = 0;
             // Center the cat on the food bowl
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
-            soundFx('eat2');
+            soundFx('eat');
         },
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
