@@ -27,10 +27,18 @@ const
     // Size of each tile in pixels
     TILE_SIZE = 32,
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
+    formatTime = (seconds) => {
+        const
+            minutes = Math.floor(seconds / 60),
+            remainingSeconds = Math.floor(seconds % 60);
+
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    },
     game = {
         createSheet (name, config) {
             this.sheets[name] = SpriteSheet(config);
         },
+        gameTime: 0,
         muted: false,
         over: false,
         sheets: {}
@@ -124,6 +132,7 @@ const
         // Clear any existing objects in the game.scene
         game.scene.objects = [];
 
+        // Add a red rectangle background
         game.scene.objects.push(Sprite({
             color: '#F00',
             render () {
@@ -135,6 +144,7 @@ const
             },
             x: 0
         }));
+        // Add the text
         game.scene.objects.push(Text({
             color: '#FFF',
             lineHeight: 1.2,
@@ -156,28 +166,26 @@ const
             text,
             textAlign: 'left'
         }));
-
-        if (options) {
-            game.scene.objects.push(Sprite({
-                animations: game.sheets[options.sheet].animations,
-                playing: false,
-                render () {
-                    // Disable image smoothing for pixel art
-                    this.context.imageSmoothingEnabled = false;
-                    this.setScale(zoomFactor * 6);
-                    // Set y postion at the bottom of the red rectangle
-                    this.y = game.scene.objects[0].bottom - (this.height * (zoomFactor * 6));
-                    // Draw the sprite
-                    this.draw();
-                },
-                update (dt) {
-                    if (!this.playing) {
-                        this.playAnimation(options.animation);
-                    }
-                    this.advance(dt);
+        // Add the sprite animation
+        game.scene.objects.push(Sprite({
+            animations: game.sheets[options.sheet].animations,
+            playing: false,
+            render () {
+                // Disable image smoothing for pixel art
+                this.context.imageSmoothingEnabled = false;
+                this.setScale(zoomFactor * 6);
+                // Set y postion at the bottom of the red rectangle
+                this.y = game.scene.objects[0].bottom - (this.height * (zoomFactor * 6));
+                // Draw the sprite
+                this.draw();
+            },
+            update (dt) {
+                if (!this.playing) {
+                    this.playAnimation(options.animation);
                 }
-            }));
-        }
+                this.advance(dt);
+            }
+        }));
         game.scene.start();
     },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
@@ -194,6 +202,7 @@ const
         canvas.height = LEVEL_HEIGHT * TILE_SIZE * zoomFactor;
         canvas.width = LEVEL_WIDTH * TILE_SIZE * zoomFactor;
     },
+    // Function to play sound effects
     soundFx = (effect) => {
         if (audio[effect]) {
             audio.zzfxP(audio[effect]);
@@ -205,7 +214,7 @@ initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
 // Set image path and load assets
-load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((imageAssets) => {
+load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -226,7 +235,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         // Time in seconds for eating animation
         EATING_DURATION = 3,
         // Evolution constants
-        EVOLUTION_BASE_TIME = 15,
+        EVOLUTION_BASE_TIME = 20,
         // Rate at which the cat gets tired from movement
         EXHAUST_FACTOR = 0.1,
         // Threshold for exhausted state before falling asleep
@@ -236,12 +245,12 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
-        IDLE_TO_SLEEP_TIMEOUT = 20,
-        LEVEL = ['kitten', 'cat', 'storm', 'void'],
+        IDLE_TO_SLEEP_TIMEOUT = 10,
+        LEVEL = ['kitten', 'cat', 'storm', 'order'],
         // Rate at which the exhaust meter recovers
-        RECOVERY_RATE = 1.5,
+        RECOVERY_RATE = 5,
         // Sleep duration in seconds
-        SLEEP_DURATION = 15,
+        SLEEP_DURATION = 10,
         // Sleep threshold for the exhaust meter
         SLEEP_THRESHOLD = 500;
 
@@ -300,9 +309,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
 
     // TODO: Replace with actual cat sprite sheet
     game.sheets.cat = game.sheets.kitten;
-    game.sheets.storm = game.sheets.kitten;
+    game.sheets.storm = game.sheets.cat;
 
-    game.createSheet('void', {
+    game.createSheet('order', {
         animations: {
             ascended: {
                 frameRate: 2,
@@ -315,7 +324,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         },
         frameHeight: 32,
         frameWidth: 32,
-        image: imageAssets.void
+        image: imageAssets.order
     });
 
     // Couch sprite
@@ -376,6 +385,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         evolutionLevel: 0,
         evolutionTargetTime: EVOLUTION_BASE_TIME,
         evolutionTimer: 0,
+        // Handles the evolution process
         evolve () {
             let text = 'IT HAS BEEN EONS SINCE ONE OF OUR KIND\nHAS CLASPED THE RED DOT IN THIER CLAWS…\n\nPRESS ENTER TO CONTINUE…';
 
@@ -389,14 +399,16 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             if (this.evolutionLevel > 2) {
                 game.over = true;
                 canvas.classList.remove('storm');
-                text = 'AT LAST… THE RED DOT IS YOURS!\nRISE NOW, CHAMPION OF THE ORDER OF THE CRIMSON DOT!\n\nPRESS ENTER TO PLAY AGAIN…';
+                text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
+
             } else if (this.evolutionLevel > 1) {
                 canvas.classList.add('storm');
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
+            // Render the cutscene
             renderScene(text, {
                 animation: game.over ? 'ascended' : 'idle',
-                sheet: 'void'
+                sheet: 'order'
             });
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
@@ -456,7 +468,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             query(`#${name} b`).style.width = value;
             query(`#${name} v`).innerHTML = value;
         },
-        sleep () {
+        sleep (centerOnCouch = true) {
             this.state = CAT_STATES.ASLEEP;
             this.idleTimer = 0;
             this.outsideRangeTimer = 0;
@@ -464,7 +476,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             // Hide food
             game.food.isVisible = false;
             // Center the cat on the couch for sleeping
-            this.centerOn(game.couch, 8 * zoomFactor, -2 * zoomFactor);
+
+            if (centerOnCouch) {
+                this.centerOn(game.couch, 8 * zoomFactor, -2 * zoomFactor);
+            }
         },
         // Sleep timer in seconds
         sleepTimer: 0,
@@ -488,7 +503,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             const
                 // Scale distances according to zoom factor
                 activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
-                evolutionSpeedBoost = 1 + this.evolutionLevel * 0.5,
+                evolutionSpeedBoost = 1 + this.evolutionLevel * 0.25,
                 maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                 maxSpeed = 5,
                 minDistance = BASE_MIN_DISTANCE * zoomFactor,
@@ -520,9 +535,6 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             this.lastPointerX = pointer.x;
             this.lastPointerY = pointer.y;
 
-            this.currentAnimation = this.getAnimation();
-            this.advance(dt);
-
             // Evolution timer - only increment when happiness is at 100%
             if (this.happinessMeter >= 100) {
                 this.evolutionTimer += dt;
@@ -533,9 +545,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                 }
             }
 
-            /*
-             * Update facing direction based on pointer position or couch position if seeking couch
-             */
+            // Update facing direction based on pointer position or couch position if seeking couch
             if (this.state === CAT_STATES.SEEKING_COUCH) {
                 // Face towards the couch
                 const toCouchX = game.couch.x - this.x;
@@ -546,6 +556,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             } else if (dx !== 0 && this.state !== CAT_STATES.EATING) {
                 this.facingRight = dx > 0;
             }
+
+            // Update the current animation based on state and facing direction
+            this.currentAnimation = this.getAnimation();
+            this.advance(dt);
 
             // Update meters
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
@@ -559,7 +573,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }
-            query('#level').innerHTML = LEVEL[this.evolutionLevel];
+            query('#level').innerHTML = `${LEVEL[this.evolutionLevel]} ${formatTime(game.gameTime)}`;
 
             // Handle eating state
             if (this.state === CAT_STATES.EATING) {
@@ -594,7 +608,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                     couchX = game.couch.x - this.x,
                     couchY = game.couch.y - this.y,
                     distanceToCouch = Math.sqrt(couchX * couchX + couchY * couchY),
-                    moveSpeed = minSpeed + (maxSpeed - minSpeed) * 0.5,
+                    moveSpeed = minSpeed + (maxSpeed - minSpeed) * 0.25,
                     // Add safe check for division by zero
                     toCouchX = distanceToCouch ? couchX / distanceToCouch : 0,
                     toCouchY = distanceToCouch ? couchY / distanceToCouch : 0;
@@ -627,8 +641,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                     this.sleepTimer = 0;
                     // Reduce happiness by 10% when waking up from sleep
                     this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
-                    // Reset exhaust meter when waking up
-                    this.exhaustMeter = 50 * (this.evolutionLevel + 1);
+                    // Reset exhaust meter based on evolution level
+                    this.exhaustMeter = 50 * (this.evolutionLevel + (this.bored ? 2 : 1));
+                    this.bored = false;
                 }
 
                 // Don't process any other logic while asleep
@@ -668,12 +683,12 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.IDLE) {
                 // Check if cat should fall asleep after being idle for too long
                 if (this.state === CAT_STATES.IDLE && this.idleTimer >= IDLE_TO_SLEEP_TIMEOUT) {
-                    // Start seeking couch instead of immediately sleeping
-                    this.startSeekingCouch();
+                    this.bored = true;
+                    this.sleep(false);
 
                     return;
                 }
-
+                // Check if cat should re-engage
                 if (distance < reengagementDistance && pointerMoved) {
                     this.state = CAT_STATES.AWAKE;
                     this.idleTimer = 0;
@@ -791,6 +806,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
             game.cat.render();
         },
         update (dt) {
+            game.gameTime += dt;
             game.cat.update(dt);
 
             // Add lightning effect for storm evolution
@@ -811,9 +827,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                         // End the lightning flash
                         canvas.classList.remove('lightning');
                         canvas.classList.add('storm');
-                        // Set cooldown until next potential lightning (3-8 seconds)
-                        game.lightningTimer = 3 + Math.random() * 5;
-                    } else if (Math.random() < 0.2) {
+                        // Set cooldown until next potential lightning (2-6 seconds)
+                        game.lightningTimer = 2 + Math.random() * 4;
+                    } else if (Math.random() < 0.33) {
                         // Create a lightning effect
                         canvas.classList.add('lightning');
                         canvas.classList.remove('storm');
@@ -822,15 +838,13 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
                         // Set duration for this lightning to almost 1 second
                         game.lightningDuration = 0.83;
                         game.lightningTimer = game.lightningDuration;
-                    } else {
-                        // If no lightning triggered, set a short cooldown of 0.5 seconds
-                        game.lightningTimer = 0.5;
                     }
                 }
             }
         }
     });
 
+    // Setup the scene manager
     game.scene = GameLoop({
         render () {
             game.scene.objects.forEach((object) => {
@@ -844,11 +858,13 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         }
     });
 
+    // Start with the intro scene
     renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE CRIMSON DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
         animation: 'idle',
-        sheet: 'void'
+        sheet: 'order'
     });
 
+    // Setup keyboard controls
     on(document, 'keyup', (event) => {
         const key = event.key;
 
@@ -858,13 +874,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'void.webp']).then((im
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
                 if (game.over) {
-                    game.over = false;
                     game.cat.evolutionLevel = 0;
                     game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
                     game.cat.evolutionTimer = 0;
                     game.cat.distanceMoved = 0;
                     game.cat.exhaustMeter = 0;
                     game.cat.happinessMeter = 25;
+                    game.gameTime = 0;
+                    game.over = false;
                 }
                 game.loop.start();
                 if (!game.muted && !game.musicPlaying) {
