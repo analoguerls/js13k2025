@@ -30,9 +30,9 @@ const
     formatTime = (seconds) => {
         const
             minutes = Math.floor(seconds / 60),
-            remainingSeconds = Math.floor(seconds % 60);
+            seconds = Math.floor(seconds % 60);
 
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     },
     game = {
         createSheet (name, config) {
@@ -387,7 +387,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         evolutionTimer: 0,
         // Handles the evolution process
         evolve () {
-            let text = 'IT HAS BEEN EONS SINCE ONE OF OUR KIND\nHAS CLASPED THE RED DOT IN THIER CLAWS…\n\nPRESS ENTER TO CONTINUE…';
+            let text = 'IT HAS BEEN EONS SINCE ONE OF OUR KIND\nHAS CLASPED THE CRIMSON DOT IN THIER CLAWS…\n\nPRESS ENTER TO CONTINUE…';
 
             game.loop.stop();
             this.evolutionLevel += 1;
