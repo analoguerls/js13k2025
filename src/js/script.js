@@ -26,6 +26,14 @@ const
     MIN_ZOOM = 1,
     // Size of each tile in pixels
     TILE_SIZE = 32,
+    calcDistance = (x1, y1, x2, y2) => {
+        const
+            dx = x1 - x2,
+            dy = y1 - y2;
+
+        // Calculate Euclidean distance
+        return Math.sqrt(dx * dx + dy * dy);
+    },
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
     drawSprite = (sprite, scale = 1) => {
         // Disable image smoothing for pixel art
@@ -118,12 +126,7 @@ const
         do {
             foodX = margin + Math.random() * maxX;
             foodY = margin + Math.random() * maxY;
-
-            const
-                dx = foodX - game.couch.x,
-                dy = foodY - game.couch.y;
-
-            toCouch = Math.sqrt(dx * dx + dy * dy);
+            toCouch = calcDistance(foodX, foodY, game.couch.x, game.couch.y);
             attempts += 1;
         } while (toCouch < minDistance && attempts < 20);
 
@@ -482,9 +485,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.state = CAT_STATES.EATING;
             resetTimers(this);
             this.eatingTimer = 0;
+            this.eatingSoundTimer = 0;
             // Center the cat on the food bowl
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
-            this.eatingSoundTimer = 0;
             soundFx('eat2');
         },
         startSeekingCouch () {
@@ -513,7 +516,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 /* eslint-disable sort-vars */
                 dx = (pointer.x / 2) - (this.x / 2),
                 dy = (pointer.y / 2) - (this.y / 2),
-                distance = Math.sqrt(dx * dx + dy * dy),
+                distance = calcDistance(pointer.x / 2, pointer.y / 2, this.x / 2, this.y / 2),
                 // Add safe check for division by zero
                 directionX = distance ? dx / distance : 0,
                 directionY = distance ? dy / distance : 0,
@@ -523,6 +526,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                            this.state !== CAT_STATES.EATING,
                 isOutsideRange = distance >= maxFollowDistance;
             /* eslint-enable sort-vars */
+
+            // Update the current animation based on state and facing direction
+            this.currentAnimation = this.getAnimation();
+            this.advance(dt);
 
             // Update the last pointer position
             this.lastPointerX = pointer.x;
@@ -549,10 +556,6 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             } else if (dx !== 0 && this.state !== CAT_STATES.EATING) {
                 this.facingRight = dx > 0;
             }
-
-            // Update the current animation based on state and facing direction
-            this.currentAnimation = this.getAnimation();
-            this.advance(dt);
 
             // Update meters
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
@@ -600,7 +603,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 const
                     couchX = game.couch.x - this.x,
                     couchY = game.couch.y - this.y,
-                    distanceToCouch = Math.sqrt(couchX * couchX + couchY * couchY),
+                    distanceToCouch = calcDistance(game.couch.x, game.couch.y, this.x, this.y),
                     moveSpeed = minSpeed + (maxSpeed - minSpeed) * 0.25,
                     // Add safe check for division by zero
                     toCouchX = distanceToCouch ? couchX / distanceToCouch : 0,
@@ -645,10 +648,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
 
             // Check if cat is close to food (when food is visible)
             if (game.food.isVisible && this.state !== CAT_STATES.SEEKING_COUCH) {
-                const
-                    foodX = game.food.x - this.x,
-                    foodY = game.food.y - this.y,
-                    toFood = Math.sqrt(foodX * foodX + foodY * foodY);
+                const toFood = calcDistance(game.food.x, game.food.y, this.x, this.y);
 
                 // If cat is close enough to food, start eating
                 if (toFood <= FOOD_THRESHOLD) {
@@ -743,11 +743,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
 
                 // Calculate actual distance moved if cat is not idle or asleep
                 if (this.state !== CAT_STATES.IDLE && this.state !== CAT_STATES.ASLEEP) {
-                    const
-                        moveX = this.x - prevX,
-                        moveY = this.y - prevY,
-                        // eslint-disable-next-line sort-vars
-                        distanceMoved = Math.sqrt(moveX * moveX + moveY * moveY);
+                    const distanceMoved = calcDistance(this.x, this.y, prevX, prevY);
 
                     /*
                      * Increase exhaust meter based on movement distance
