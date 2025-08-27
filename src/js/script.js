@@ -488,7 +488,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.eatingSoundTimer = 0;
             // Center the cat on the food bowl
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
-            soundFx('eat2');
+            soundFx('eat');
         },
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
