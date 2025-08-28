@@ -198,6 +198,12 @@ const
         obj.idleTimer = 0;
         obj.outsideRangeTimer = 0;
     },
+    setCanvasMode = (mode) => {
+        canvas.classList.remove('storm', 'lightning');
+        if (mode) {
+            canvas.classList.add(mode);
+        }
+    },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = () => {
@@ -222,7 +228,6 @@ const
         const storageKey = 'ootcdBest';
         let bestTime = parseFloat(localStorage.getItem(storageKey)) || Infinity;
 
-        // If no elapsed time is passed, just display the current best time
         if (elapsedSeconds) {
             // Compare current time with best time and update if better
             if (elapsedSeconds < bestTime) {
@@ -235,8 +240,6 @@ const
         if (bestTime !== Infinity) {
             query('#time t').innerHTML = formatTime(bestTime);
         }
-
-        return bestTime;
     };
 
 // Initialize the pointer API
@@ -423,11 +426,11 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             positionCouch();
             if (this.evolutionLevel > 2) {
                 game.over = true;
-                canvas.classList.remove('storm');
+                setCanvasMode();
                 text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
                 trackBestTime(game.gameTime);
             } else if (this.evolutionLevel > 1) {
-                canvas.classList.add('storm');
+                setCanvasMode('storm');
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
             // Render the cutscene
@@ -835,14 +838,12 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 if (game.lightningTimer <= 0) {
                     if (canvas.classList.contains('lightning')) {
                         // End the lightning flash
-                        canvas.classList.remove('lightning');
-                        canvas.classList.add('storm');
+                        setCanvasMode('storm');
                         // Set cooldown until next potential lightning (2-6 seconds)
                         game.lightningTimer = 2 + Math.random() * 4;
                     } else if (Math.random() < 0.33) {
                         // Create a lightning effect
-                        canvas.classList.add('lightning');
-                        canvas.classList.remove('storm');
+                        setCanvasMode('lightning');
                         soundFx('explosion');
 
                         // Set duration for this lightning to almost 1 second

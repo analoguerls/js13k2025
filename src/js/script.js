@@ -18,6 +18,8 @@ const
     {
         canvas
     } = init(),
+    CLASS_LIGHTNING = 'lightning',
+    CLASS_STORM = 'storm',
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
@@ -198,6 +200,12 @@ const
         obj.idleTimer = 0;
         obj.outsideRangeTimer = 0;
     },
+    setCanvasMode = (mode) => {
+        canvas.classList.remove(CLASS_STORM, CLASS_LIGHTNING);
+        if (mode) {
+            canvas.classList.add(mode);
+        }
+    },
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = () => {
@@ -275,7 +283,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
         IDLE_TO_SLEEP_TIMEOUT = 10,
-        LEVEL = ['kitten', 'cat', 'storm', 'order'],
+        LEVEL = ['kitten', 'cat', CLASS_STORM, 'order'],
         // Rate at which the exhaust meter recovers
         RECOVERY_RATE = 5,
         // Sleep duration in seconds
@@ -420,11 +428,11 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             positionCouch();
             if (this.evolutionLevel > 2) {
                 game.over = true;
-                canvas.classList.remove('storm');
+                setCanvasMode();
                 text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
                 trackBestTime(game.gameTime);
             } else if (this.evolutionLevel > 1) {
-                canvas.classList.add('storm');
+                setCanvasMode(CLASS_STORM);
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
             // Render the cutscene
@@ -803,7 +811,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     game.loop = GameLoop({
         render () {
             // Render couch first so it appears behind the cat
-            if (game.cat.evolutionLevel !== 2 || canvas.classList.contains('lightning')) {
+            if (game.cat.evolutionLevel !== 2 || canvas.classList.contains(CLASS_LIGHTNING)) {
                 game.couch.render();
                 // Render food bowl if visible
                 if (game.food.isVisible) {
@@ -830,16 +838,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 game.lightningTimer -= dt;
 
                 if (game.lightningTimer <= 0) {
-                    if (canvas.classList.contains('lightning')) {
+                    if (canvas.classList.contains(CLASS_LIGHTNING)) {
                         // End the lightning flash
-                        canvas.classList.remove('lightning');
-                        canvas.classList.add('storm');
+                        setCanvasMode(CLASS_STORM);
                         // Set cooldown until next potential lightning (2-6 seconds)
                         game.lightningTimer = 2 + Math.random() * 4;
                     } else if (Math.random() < 0.33) {
                         // Create a lightning effect
-                        canvas.classList.add('lightning');
-                        canvas.classList.remove('storm');
+                        setCanvasMode(CLASS_LIGHTNING);
                         soundFx('explosion');
 
                         // Set duration for this lightning to almost 1 second
