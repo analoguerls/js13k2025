@@ -222,7 +222,6 @@ const
         const storageKey = 'ootcdBest';
         let bestTime = parseFloat(localStorage.getItem(storageKey)) || Infinity;
 
-        // If no elapsed time is passed, just display the current best time
         if (elapsedSeconds) {
             // Compare current time with best time and update if better
             if (elapsedSeconds < bestTime) {
@@ -235,8 +234,6 @@ const
         if (bestTime !== Infinity) {
             query('#time t').innerHTML = formatTime(bestTime);
         }
-
-        return bestTime;
     };
 
 // Initialize the pointer API
