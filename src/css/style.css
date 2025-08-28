@@ -51,13 +51,20 @@ li {
         right: 0;
     }
 
+    li:nth-child(3) {
+        bottom: 0;
+        color: #FFF;
+    }
+
     li:last-child {
         bottom: 0;
-        color: #fff;
-        margin-left: -32px;
-        text-align: center;
-        width: 100%;
+        color: #FFF;
+        right: 0;
     }
+
+        li:last-child b {
+            margin: 0 0.6em;
+        }
 
     li a {
         background: #FFF;
@@ -75,7 +82,7 @@ li {
         li a b, li a i {
             background: #F00;
             border: 2px solid #FFF;
-            border-radius: 7px;
+            border-radius: 6px;
             display: inline-block;
             height: 14px;
             position: absolute;

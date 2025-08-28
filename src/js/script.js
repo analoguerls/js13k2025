@@ -1,4 +1,4 @@
-﻿/* global document, Image, clearTimeout, setTimeout, window */
+﻿/* global document, Image, clearTimeout, localStorage, setTimeout, window */
 /* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
@@ -217,12 +217,34 @@ const
         if (audio[effect]) {
             audio.zzfxP(audio[effect]);
         }
+    },
+    trackBestTime = (elapsedSeconds) => {
+        const storageKey = 'ootcdBest';
+        let bestTime = parseFloat(localStorage.getItem(storageKey)) || Infinity;
+
+        // If no elapsed time is passed, just display the current best time
+        if (elapsedSeconds) {
+            // Compare current time with best time and update if better
+            if (elapsedSeconds < bestTime) {
+                bestTime = elapsedSeconds;
+                localStorage.setItem(storageKey, bestTime);
+            }
+        }
+
+        // Update the display if we have a valid best time
+        if (bestTime !== Infinity) {
+            query('#time t').innerHTML = formatTime(bestTime);
+        }
+
+        return bestTime;
     };
 
 // Initialize the pointer API
 initPointer();
 // Set the initial zoom factor and canvas dimensions
 setZoomFactor();
+// Display the best time if available
+trackBestTime();
 // Set image path and load assets
 load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((imageAssets) => {
     const
@@ -403,7 +425,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 game.over = true;
                 canvas.classList.remove('storm');
                 text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
-
+                trackBestTime(game.gameTime);
             } else if (this.evolutionLevel > 1) {
                 canvas.classList.add('storm');
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
@@ -569,7 +591,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }
-            query('#level').innerHTML = `${LEVEL[this.evolutionLevel]} ${formatTime(game.gameTime)}`;
+            query('#time v').innerHTML = formatTime(game.gameTime);
+            query('#level').innerHTML = LEVEL[this.evolutionLevel];
 
             // Handle eating state
             if (this.state === CAT_STATES.EATING) {
