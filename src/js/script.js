@@ -344,8 +344,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 frames: [0, 1, 2]
             }
         },
-        frameHeight: 32,
-        frameWidth: 32,
+        frameHeight: TILE_SIZE,
+        frameWidth: TILE_SIZE,
         image: imageAssets.kitten
     });
 
@@ -365,8 +365,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 frames: [0, 1]
             }
         },
-        frameHeight: 32,
-        frameWidth: 32,
+        frameHeight: TILE_SIZE,
+        frameWidth: TILE_SIZE,
         image: imageAssets.order
     });
 
@@ -564,7 +564,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                            this.state !== CAT_STATES.SEEKING_COUCH &&
                            this.state !== CAT_STATES.EATING,
                 isOutsideRange = distance >= maxFollowDistance;
-            /* eslint-enable sort-vars */
+                /* eslint-enable sort-vars */
 
             // Update the current animation based on state and facing direction
             this.currentAnimation = this.getAnimation();
