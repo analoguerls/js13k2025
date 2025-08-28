@@ -18,6 +18,10 @@ const
     {
         canvas
     } = init(),
+    // CSS classes for different modes
+    CLASS_LIGHTNING = 'lightning',
+    CLASS_STORM = 'storm',
+    // Debounce delay for resize events in milliseconds
     DEBOUNCE_DELAY = 100,
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
@@ -26,6 +30,7 @@ const
     MIN_ZOOM = 1,
     // Size of each tile in pixels
     TILE_SIZE = 32,
+    // Function to calculate distance between two points
     calcDistance = (x1, y1, x2, y2) => {
         const
             dx = x1 - x2,
@@ -34,13 +39,16 @@ const
         // Calculate Euclidean distance
         return Math.sqrt(dx * dx + dy * dy);
     },
+    // Clamp a value between a minimum and maximum
     clamp = (value, min, max) => Math.max(min, Math.min(max, value)),
+    // Function to draw a sprite with scaling and pixel art handling
     drawSprite = (sprite, scale = 1) => {
         // Disable image smoothing for pixel art
         sprite.context.imageSmoothingEnabled = false;
         sprite.setScale(zoomFactor * scale);
         sprite.draw();
     },
+    // Function to format time in seconds to MM:SS
     formatTime = (timeInSeconds) => {
         const
             minutes = Math.floor(timeInSeconds / 60),
@@ -48,6 +56,7 @@ const
 
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     },
+    // Main game object to hold state and methods
     game = {
         createSheet (name, config) {
             this.sheets[name] = SpriteSheet(config);
@@ -79,6 +88,7 @@ const
             then(() => resolve(images)).
             catch(reject);
     }),
+    // Music controller to manage background music playback
     music = (function () {
         let player = null;
 
@@ -97,6 +107,7 @@ const
             }
         };
     }()),
+    // Helper to add event listeners
     on = (element, eventType, callback) => element.addEventListener(eventType, callback),
     // Function to randomly position the couch
     positionCouch = () => {
@@ -135,8 +146,11 @@ const
         game.food.y = foodY;
         game.food.isVisible = true;
     },
+    // Simple query selector helper
     query = (selector) => document.querySelector(selector),
+    // Calculate new meter value based on recovery rate
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
+    // Function to render title screen, cutscenes and game messages
     renderScene = (text, options) => {
         // Clear any existing objects in the game.scene
         game.scene.objects = [];
@@ -194,16 +208,19 @@ const
         }));
         game.scene.start();
     },
+    // Function to reset idle and outside range timers
     resetTimers = (obj) => {
         obj.idleTimer = 0;
         obj.outsideRangeTimer = 0;
     },
+    // Function to set canvas mode classes
     setCanvasMode = (mode) => {
-        canvas.classList.remove('storm', 'lightning');
+        canvas.classList.remove(CLASS_STORM, CLASS_LIGHTNING);
         if (mode) {
             canvas.classList.add(mode);
         }
     },
+    // Calculate centered position for an object of size 'b' within a dimension 'a'
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
     setZoomFactor = () => {
@@ -224,6 +241,7 @@ const
             audio.zzfxP(audio[effect]);
         }
     },
+    // Function to track and display the best time using localStorage
     trackBestTime = (elapsedSeconds) => {
         const storageKey = 'ootcdBest';
         let bestTime = parseFloat(localStorage.getItem(storageKey)) || Infinity;
@@ -253,10 +271,13 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
+        // Maximum distance before cat stops following
         BASE_MAX_FOLLOW_DISTANCE = 6 * TILE_SIZE,
+        // Minimum distance to start moving toward the pointer
         BASE_MIN_DISTANCE = 0.125 * TILE_SIZE,
         // Closer distance required to re-engage the cat
         BASE_REENGAGEMENT_DISTANCE = TILE_SIZE,
+        // Cat states
         CAT_STATES = {
             ASLEEP: 'asleep',
             AWAKE: 'awake',
@@ -281,7 +302,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
         IDLE_TO_SLEEP_TIMEOUT = 10,
-        LEVEL = ['kitten', 'cat', 'storm', 'order'],
+        // Evolution level names
+        LEVEL = ['kitten', 'cat', CLASS_STORM, 'order'],
         // Rate at which the exhaust meter recovers
         RECOVERY_RATE = 5,
         // Sleep duration in seconds
@@ -289,22 +311,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // Sleep threshold for the exhaust meter
         SLEEP_THRESHOLD = 500;
 
-    // Update the zoom factor and canvas dimensions on window resize
-    on(window, 'resize', () => {
-        clearTimeout(resizeTimeout);
-        // Debounce the resize event to avoid excessive calculations
-        resizeTimeout = setTimeout(() => {
-            setZoomFactor();
-            if (game.cat) {
-                game.cat.x = setPosition(canvas.width, game.cat.width);
-                game.cat.y = setPosition(canvas.height, game.cat.height);
-            }
-            if (game.couch) {
-                positionCouch();
-            }
-        }, DEBOUNCE_DELAY);
-    });
-
+    // Define the kitten sprite sheet and animations
     game.createSheet('kitten', {
         animations: {
             asleep: {
@@ -346,6 +353,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     game.sheets.cat = game.sheets.kitten;
     game.sheets.storm = game.sheets.cat;
 
+    // Define the order sprite sheet and animations
     game.createSheet('order', {
         animations: {
             ascended: {
@@ -401,6 +409,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.x = targetObject.x + (targetScaled.width - catScaled.width) / 2 + xOffset;
             this.y = targetObject.y + (targetScaled.height - catScaled.height) / 2 + yOffset;
         },
+        // Store the current animation state
         current: {
             facing: null,
             state: null
@@ -430,7 +439,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
                 trackBestTime(game.gameTime);
             } else if (this.evolutionLevel > 1) {
-                setCanvasMode('storm');
+                setCanvasMode(CLASS_STORM);
                 text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
             }
             // Render the cutscene
@@ -443,30 +452,27 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         exhaustMeter: 0,
         // Set initial facing direction (default is left)
         facingRight: false,
+        // Method to determine the correct animation based on state and direction
         getAnimation () {
-            const suffix = this.facingRight ? 'right' : 'left';
-            let state = 'asleep';
+            let state = this.state === CAT_STATES.SEEKING_COUCH
+                ? CAT_STATES.EXHAUSTED
+                : this.state;
 
-            if (this.state === CAT_STATES.EATING) {
-                state = 'eating';
-            } else if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.SEEKING_COUCH) {
-                // eslint-disable-next-line prefer-template
-                state = 'exhausted' + suffix;
-            } else if (this.state === CAT_STATES.IDLE) {
-                state = 'idle';
-            } else if (this.state !== CAT_STATES.ASLEEP) {
-                // eslint-disable-next-line prefer-template
-                state = 'awake' + suffix;
+            // Add facing direction suffix for awake and exhausted states
+            if (state === CAT_STATES.AWAKE || state === CAT_STATES.EXHAUSTED) {
+                state += this.facingRight ? 'right' : 'left';
             }
 
             return this.animations[state];
         },
+        // Get evolution progress as a percentage string
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
                 // eslint-disable-next-line prefer-template
                 ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(0) + '%'
                 : '0%';
         },
+        // Get stamina as a percentage string (inverted exhaust meter)
         getStaminaPercent () {
             return Math.max(0, (100 - (this.exhaustMeter / 5)));
         },
@@ -479,19 +485,23 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         lastPointerY: 0,
         // To track if the pointer is outside range
         outsideRangeTimer: 0,
+        // Called every frame to render the game
         render () {
             drawSprite(this);
         },
+        // Return scaled dimensions of the cat sprite
         scaled () {
             return {
                 height: this.height * zoomFactor,
                 width: this.width * zoomFactor
             };
         },
+        // Method to update the visual meters
         setMeter (name, value) {
             query(`#${name} b`).style.width = value;
             query(`#${name} v`).innerHTML = value;
         },
+        // Method to put the cat to sleep
         sleep (centerOnCouch = true) {
             this.state = CAT_STATES.ASLEEP;
             resetTimers(this);
@@ -506,6 +516,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         // Sleep timer in seconds
         sleepTimer: 0,
+        // Method to start eating
         startEating () {
             this.state = CAT_STATES.EATING;
             resetTimers(this);
@@ -515,11 +526,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.centerOn(game.food, -10 * zoomFactor, -5 * zoomFactor);
             soundFx('eat');
         },
+        // Method to start seeking the couch
         startSeekingCouch () {
             this.state = CAT_STATES.SEEKING_COUCH;
             resetTimers(this);
         },
+        // Current state of the cat
         state: CAT_STATES.AWAKE,
+        // Called every frame to update the game
         update (dt) {
             const
                 // Scale distances according to zoom factor
@@ -801,6 +815,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt);
             }
         },
+        // Initialize position to center of canvas
         x: setPosition(canvas.width, TILE_SIZE * zoomFactor),
         y: setPosition(canvas.height, TILE_SIZE * zoomFactor)
     });
@@ -809,7 +824,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     game.loop = GameLoop({
         render () {
             // Render couch first so it appears behind the cat
-            if (game.cat.evolutionLevel !== 2 || canvas.classList.contains('lightning')) {
+            if (game.cat.evolutionLevel !== 2 || canvas.classList.contains(CLASS_LIGHTNING)) {
                 game.couch.render();
                 // Render food bowl if visible
                 if (game.food.isVisible) {
@@ -836,14 +851,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 game.lightningTimer -= dt;
 
                 if (game.lightningTimer <= 0) {
-                    if (canvas.classList.contains('lightning')) {
+                    if (canvas.classList.contains(CLASS_LIGHTNING)) {
                         // End the lightning flash
-                        setCanvasMode('storm');
+                        setCanvasMode(CLASS_STORM);
                         // Set cooldown until next potential lightning (2-6 seconds)
                         game.lightningTimer = 2 + Math.random() * 4;
                     } else if (Math.random() < 0.33) {
                         // Create a lightning effect
-                        setCanvasMode('lightning');
+                        setCanvasMode(CLASS_LIGHTNING);
                         soundFx('explosion');
 
                         // Set duration for this lightning to almost 1 second
@@ -875,16 +890,35 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         sheet: 'order'
     });
 
+    // Update the zoom factor and canvas dimensions on window resize
+    on(window, 'resize', () => {
+        clearTimeout(resizeTimeout);
+        // Debounce the resize event to avoid excessive calculations
+        resizeTimeout = setTimeout(() => {
+            setZoomFactor();
+            if (game.cat) {
+                game.cat.x = setPosition(canvas.width, game.cat.width);
+                game.cat.y = setPosition(canvas.height, game.cat.height);
+            }
+            if (game.couch) {
+                positionCouch();
+            }
+        }, DEBOUNCE_DELAY);
+    });
+
     // Setup keyboard controls
     on(document, 'keyup', (event) => {
         const key = event.key;
 
+        // Stop the scene if running
         if (!game.scene.isStopped) {
             game.scene.stop();
         }
+        // Handle pause and unpause
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
                 if (game.over) {
+                    // Reset game state for a new game
                     game.cat.evolutionLevel = 0;
                     game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
                     game.cat.evolutionTimer = 0;
@@ -905,12 +939,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                     game.musicPlaying = false;
                     music.stop();
                 }
+                // Pause scene
                 renderScene('Game pawsed.\nPress ENTER to resume...', {
                     animation: 'idle',
                     sheet: LEVEL[game.cat.evolutionLevel]
                 });
             }
         }
+        // Handle mute toggle
         if (key === 'm') {
             game.muted = !game.muted;
             if (game.muted) {
