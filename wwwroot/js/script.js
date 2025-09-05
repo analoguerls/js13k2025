@@ -1,5 +1,5 @@
 /* global document, Image, clearTimeout, localStorage, setTimeout, window */
-/* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
+/* eslint-disable new-cap, no-extra-parens, no-mixed-operators, prefer-template */
 import {
     GameLoop,
     Sprite,
@@ -62,10 +62,12 @@ const
             this.sheets[name] = SpriteSheet(config);
         },
         gameTime: 0,
+        intro: 0,
         muted: false,
         over: false,
         sheets: {}
     },
+    getSceneText = (message, action) => `${message}\n\nPRESS ENTER TO ${action || 'CONTINUE'}…`,
     // Function to load images asynchronously
     load = (path, assets) => new Promise((resolve, reject) => {
         const images = {};
@@ -146,18 +148,18 @@ const
         game.food.y = foodY;
         game.food.isVisible = true;
     },
-    // Simple query selector helper
-    query = (selector) => document.querySelector(selector),
     // Calculate new meter value based on recovery rate
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     // Function to render title screen, cutscenes and game messages
-    renderScene = (text, options) => {
+    renderScene = (text, options = {}) => {
         // Clear any existing objects in the game.scene
         game.scene.objects = [];
+        options.animation ||= 'idle';
+        options.sheet ||= 'order';
 
         // Add a red rectangle background
         game.scene.objects.push(Sprite({
-            color: '#F00',
+            color: options.background || '#F00',
             render () {
                 this.width = canvas.width;
                 this.height = canvas.height / 3;
@@ -169,7 +171,7 @@ const
         }));
         // Add the text
         game.scene.objects.push(Text({
-            color: '#FFF',
+            color: options.color || '#FFF',
             lineHeight: 1.2,
             render () {
                 const
@@ -220,6 +222,10 @@ const
             canvas.classList.add(mode);
         }
     },
+    // Helper to set a property of a DOM element
+    setElement = (selector, prop, value) => {
+        document.querySelector(selector)[prop] = value;
+    },
     // Calculate centered position for an object of size 'b' within a dimension 'a'
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
@@ -256,7 +262,7 @@ const
 
         // Update the display if we have a valid best time
         if (bestTime !== Infinity) {
-            query('#time t').innerHTML = formatTime(bestTime);
+            setElement('#time t', 'innerHTML', formatTime(bestTime));
         }
     };
 
@@ -344,8 +350,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 frames: [0, 1, 2]
             }
         },
-        frameHeight: 32,
-        frameWidth: 32,
+        frameHeight: TILE_SIZE,
+        frameWidth: TILE_SIZE,
         image: imageAssets.kitten
     });
 
@@ -365,8 +371,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 frames: [0, 1]
             }
         },
-        frameHeight: 32,
-        frameWidth: 32,
+        frameHeight: TILE_SIZE,
+        frameWidth: TILE_SIZE,
         image: imageAssets.order
     });
 
@@ -424,7 +430,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         evolutionTimer: 0,
         // Handles the evolution process
         evolve () {
-            let text = 'IT HAS BEEN EONS SINCE ONE OF OUR KIND\nHAS CLASPED THE CRIMSON DOT IN THIER CLAWS…\n\nPRESS ENTER TO CONTINUE…';
+            let text = getSceneText('SO… THE KITTEN HAS BECOME A CAT\nYOUR PAWS GROW SWIFT, YOUR EYES SHARP\nBUT THE CRIMSON DOT STILL ELUDES YOU…');
 
             game.loop.stop();
             this.evolutionLevel += 1;
@@ -434,19 +440,16 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             // Reposition couch for new level
             positionCouch();
             if (this.evolutionLevel > 2) {
-                game.over = true;
+                game.ascended = true;
                 setCanvasMode();
-                text = `YOU HAVE CLAIMED THE CRIMSON DOT IN ${formatTime(game.gameTime)}\nTHE ORDER CHALLENGES YOU TO DO BETTER…\n\nPRESS ENTER TO PLAY AGAIN…`;
+                text = getSceneText('AT LAST, THE CRIMSON DOT IS YOURS!');
                 trackBestTime(game.gameTime);
             } else if (this.evolutionLevel > 1) {
                 setCanvasMode(CLASS_STORM);
-                text = 'YOU ARE READY TO ASCEND SMALL CREATURE,\nBUT FIRST, YOU MUST WEATHER THE STORM…\n\nPRESS ENTER TO CONTINUE…';
+                text = getSceneText('IMPRESSIVE, BUT BEFORE YOU CAN ASCEND SMALL\nCREATURE, YOU MUST WEATHER THE STORM…');
             }
             // Render the cutscene
-            renderScene(text, {
-                animation: game.over ? 'ascended' : 'idle',
-                sheet: 'order'
-            });
+            renderScene(text);
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
         exhaustMeter: 0,
@@ -468,7 +471,6 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // Get evolution progress as a percentage string
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
-                // eslint-disable-next-line prefer-template
                 ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(0) + '%'
                 : '0%';
         },
@@ -498,8 +500,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         // Method to update the visual meters
         setMeter (name, value) {
-            query(`#${name} b`).style.width = value;
-            query(`#${name} v`).innerHTML = value;
+            setElement(`#${name} b`, 'style.width', value);
+            setElement(`#${name} v`, 'innerHTML', value);
         },
         // Method to put the cat to sleep
         sleep (centerOnCouch = true) {
@@ -564,7 +566,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                            this.state !== CAT_STATES.SEEKING_COUCH &&
                            this.state !== CAT_STATES.EATING,
                 isOutsideRange = distance >= maxFollowDistance;
-            /* eslint-enable sort-vars */
+                /* eslint-enable sort-vars */
 
             // Update the current animation based on state and facing direction
             this.currentAnimation = this.getAnimation();
@@ -600,16 +602,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
             this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
             if (this.happinessMeter >= 100) {
-                const evolution = query('#happiness i');
-
-                query('#happiness t').innerHTML = 'Evolving…';
-                evolution.style.width = this.getEvolutionPercent();
-                evolution.innerHTML = this.getEvolutionPercent();
+                setElement('#happiness t', 'innerHTML', 'Evolving…');
+                setElement('style.width', this.getEvolutionPercent());
+                setElement('innerHTML', this.getEvolutionPercent());
             } else {
-                query('#happiness t').innerHTML = 'Happiness';
+                setElement('#happiness t', 'innerHTML', 'Happiness');
             }
-            query('#time v').innerHTML = formatTime(game.gameTime);
-            query('#level').innerHTML = LEVEL[this.evolutionLevel];
+            setElement('#time v', 'innerHTML', formatTime(game.gameTime));
+            setElement('#level', 'innerHTML', LEVEL[this.evolutionLevel]);
 
             // Handle eating state
             if (this.state === CAT_STATES.EATING) {
@@ -839,14 +839,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
 
             // Add lightning effect for storm evolution
             if (game.cat.evolutionLevel === 2) {
-                // Initialize lightning properties if they don't exist
-                if (!game.lightningTimer) {
-                    game.lightningTimer = 0;
-                    game.lightningDuration = 0;
-                    // Initial cooldown before first lightning
-                    game.lightningCooldown = 3;
-                }
-
+                game.lightningTimer ||= 0;
                 // Count down the timer
                 game.lightningTimer -= dt;
 
@@ -860,10 +853,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                         // Create a lightning effect
                         setCanvasMode(CLASS_LIGHTNING);
                         soundFx('explosion');
-
                         // Set duration for this lightning to almost 1 second
-                        game.lightningDuration = 0.83;
-                        game.lightningTimer = game.lightningDuration;
+                        game.lightningTimer = 0.83;
                     }
                 }
             }
@@ -885,9 +876,10 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     });
 
     // Start with the intro scene
-    renderScene('SO… YOU THINK YOU HAVE WHAT IT TAKES\nTO JOIN THE ORDER OF THE CRIMSON DOT?\n\nTHEN PRESS ENTER TO BEGIN…', {
-        animation: 'idle',
-        sheet: 'order'
+    renderScene(getSceneText('NOTHING MAKES THIS LITTLE KITTEN HAPPIER\nTHAN CHASING THE LITTLE RED DOT :)'), {
+        background: '#BBB',
+        color: '#000',
+        sheet: 'kitten'
     });
 
     // Update the zoom factor and canvas dimensions on window resize
@@ -917,21 +909,38 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // Handle pause and unpause
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
-                if (game.over) {
-                    // Reset game state for a new game
-                    game.cat.evolutionLevel = 0;
-                    game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
-                    game.cat.evolutionTimer = 0;
-                    game.cat.distanceMoved = 0;
-                    game.cat.exhaustMeter = 0;
-                    game.cat.happinessMeter = 25;
-                    game.gameTime = 0;
-                    game.over = false;
-                }
-                game.loop.start();
-                if (!game.muted && !game.musicPlaying) {
-                    game.musicPlaying = true;
-                    music.start();
+                if (game.intro < 2) {
+                    const text = game.intro === 0
+                        ? getSceneText('A WISE OLD CAT APPEARS BEFORE YOU…')
+                        : getSceneText('IT HAS BEEN EONS SINCE CATS HAVE CLASPED\nTHE CRIMSON DOT IN THEIR CLAWS… DO YOU\nHAVE WHAT IT TAKES TO JOIN THE ORDER?', 'BEGIN');
+
+                    game.intro += 1;
+                    renderScene(text);
+                } else if (game.ascended) {
+                    game.ascended = false;
+                    game.intro = 0;
+                    game.over = true;
+                    renderScene(getSceneText(`YOU ASCENDED IN ${formatTime(game.gameTime)}\nTHE ORDER WELCOMES YOU, BUT\nCHALLENGES YOU TO DO BETTER…`, 'TRY AGAIN'), {
+                        animation: 'ascended'
+                    });
+                } else {
+                    if (game.over) {
+                        // Reset game state for a new game
+                        game.cat.evolutionLevel = 0;
+                        game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
+                        game.cat.evolutionTimer = 0;
+                        game.cat.distanceMoved = 0;
+                        game.cat.exhaustMeter = 0;
+                        game.cat.happinessMeter = 0;
+                        game.food.isVisible = false;
+                        game.gameTime = 0;
+                        game.over = false;
+                    }
+                    game.loop.start();
+                    if (!game.muted && !game.musicPlaying) {
+                        game.musicPlaying = true;
+                        music.start();
+                    }
                 }
             } else {
                 game.loop.stop();
@@ -940,8 +949,9 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                     music.stop();
                 }
                 // Pause scene
-                renderScene('Game pawsed.\nPress ENTER to resume...', {
-                    animation: 'idle',
+                renderScene(getSceneText('GAME PAWSED'), {
+                    background: '#BBB',
+                    color: '#000',
                     sheet: LEVEL[game.cat.evolutionLevel]
                 });
             }

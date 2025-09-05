@@ -91,10 +91,14 @@ li {
         }
 
         li a i {
-            background-color: #000;
+            background: #000;
             border-right: 0;
             color: #FFF;
             font: normal 12px/14px sans-serif;
             overflow: hidden;
             text-align: center;
+        }
+
+        #exhaust a b {
+            background: #50B;
         }
