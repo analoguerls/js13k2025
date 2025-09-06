@@ -1,5 +1,5 @@
 /* global document, Image, clearTimeout, localStorage, setTimeout, window */
-/* eslint-disable new-cap, no-extra-parens, no-mixed-operators, prefer-template */
+/* eslint-disable new-cap, no-extra-parens, no-mixed-operators */
 import {
     GameLoop,
     Sprite,
@@ -18,16 +18,48 @@ const
     {
         canvas
     } = init(),
+    ANIMATIONS = {
+        asleep: {
+            frameRate: 2,
+            frames: [6, 7]
+        },
+        awakeleft: {
+            frameRate: 10,
+            frames: [8, 9, 10, 11]
+        },
+        awakeright: {
+            frameRate: 10,
+            frames: [2, 3, 4, 5]
+        },
+        eating: {
+            frameRate: 2,
+            frames: [12, 13]
+        },
+        exhaustedleft: {
+            frameRate: 5,
+            frames: [8, 9]
+        },
+        exhaustedright: {
+            frameRate: 5,
+            frames: [2, 3]
+        },
+        idle: {
+            frameRate: 5,
+            frames: [0, 1]
+        }
+    },
     // CSS classes for different modes
     CLASS_LIGHTNING = 'lightning',
     CLASS_STORM = 'storm',
     // Debounce delay for resize events in milliseconds
     DEBOUNCE_DELAY = 100,
+    KITTEN = 'kitten',
     // Level dimensions in tiles
     LEVEL_HEIGHT = 10,
     LEVEL_WIDTH = 22,
     // Minimum zoom factor to ensure visibility
     MIN_ZOOM = 1,
+    ORDER = 'order',
     // Size of each tile in pixels
     TILE_SIZE = 32,
     // Function to calculate distance between two points
@@ -54,7 +86,8 @@ const
             minutes = Math.floor(timeInSeconds / 60),
             seconds = Math.floor(timeInSeconds % 60);
 
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        // eslint-disable-next-line prefer-template
+        return minutes + ':' + seconds.toString().padStart(2, '0');
     },
     // Main game object to hold state and methods
     game = {
@@ -148,6 +181,8 @@ const
         game.food.y = foodY;
         game.food.isVisible = true;
     },
+    // Simple query selector helper
+    query = (selector) => document.querySelector(selector),
     // Calculate new meter value based on recovery rate
     recoveryRateCalculation = (meter, rate, dt, multiplier = 1) => Math.max(0, meter - rate * multiplier * dt),
     // Function to render title screen, cutscenes and game messages
@@ -155,7 +190,7 @@ const
         // Clear any existing objects in the game.scene
         game.scene.objects = [];
         options.animation ||= 'idle';
-        options.sheet ||= 'order';
+        options.sheet ||= ORDER;
 
         // Add a red rectangle background
         game.scene.objects.push(Sprite({
@@ -222,10 +257,6 @@ const
             canvas.classList.add(mode);
         }
     },
-    // Helper to set a property of a DOM element
-    setElement = (selector, prop, value) => {
-        document.querySelector(selector)[prop] = value;
-    },
     // Calculate centered position for an object of size 'b' within a dimension 'a'
     setPosition = (a, b) => (a - (b * zoomFactor)) / 2,
     // Calculate and set the appropriate zoom factor based on window dimensions
@@ -262,7 +293,7 @@ const
 
         // Update the display if we have a valid best time
         if (bestTime !== Infinity) {
-            setElement('#time t', 'innerHTML', formatTime(bestTime));
+            query('#time t').innerHTML = formatTime(bestTime);
         }
     };
 
@@ -273,7 +304,7 @@ setZoomFactor();
 // Display the best time if available
 trackBestTime();
 // Set image path and load assets
-load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((imageAssets) => {
+load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.webp']).then((imageAssets) => {
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
@@ -309,7 +340,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // Time in seconds before cat falls asleep after being idle
         IDLE_TO_SLEEP_TIMEOUT = 10,
         // Evolution level names
-        LEVEL = ['kitten', 'cat', CLASS_STORM, 'order'],
+        LEVEL = [KITTEN, 'cat', CLASS_STORM, ORDER],
         // Rate at which the exhaust meter recovers
         RECOVERY_RATE = 5,
         // Sleep duration in seconds
@@ -318,53 +349,33 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         SLEEP_THRESHOLD = 500;
 
     // Define the kitten sprite sheet and animations
-    game.createSheet('kitten', {
-        animations: {
-            asleep: {
-                frameRate: 2,
-                frames: [7, 8]
-            },
-            awakeleft: {
-                frameRate: 10,
-                frames: [9, 10, 11, 12]
-            },
-            awakeright: {
-                frameRate: 10,
-                frames: [3, 4, 5, 6]
-            },
-            eating: {
-                frameRate: 10,
-                // Temporarily use idle animations for eating
-                frames: [0, 1, 2]
-            },
-            exhaustedleft: {
-                frameRate: 5,
-                frames: [9, 10]
-            },
-            exhaustedright: {
-                frameRate: 5,
-                frames: [3, 4]
-            },
-            idle: {
-                frameRate: 10,
-                frames: [0, 1, 2]
-            }
-        },
+    game.createSheet(KITTEN, {
+        animations: ANIMATIONS,
         frameHeight: TILE_SIZE,
         frameWidth: TILE_SIZE,
         image: imageAssets.kitten
     });
 
-    // TODO: Replace with actual cat sprite sheet
-    game.sheets.cat = game.sheets.kitten;
+    game.createSheet('cat', {
+        animations: ANIMATIONS,
+        frameHeight: TILE_SIZE,
+        frameWidth: TILE_SIZE,
+        image: imageAssets.cat
+    });
+    game.sheets.cat.animations.idle.frameRate = 2;
+    // Reuse cat sheet for storm level
     game.sheets.storm = game.sheets.cat;
 
     // Define the order sprite sheet and animations
-    game.createSheet('order', {
+    game.createSheet(ORDER, {
         animations: {
             ascended: {
                 frameRate: 2,
                 frames: [2, 3]
+            },
+            captured: {
+                frameRate: 0,
+                frames: [4]
             },
             idle: {
                 frameRate: 2,
@@ -430,10 +441,12 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         evolutionTimer: 0,
         // Handles the evolution process
         evolve () {
-            let text = getSceneText('SO… THE KITTEN HAS BECOME A CAT\nYOUR PAWS GROW SWIFT, YOUR EYES SHARP\nBUT THE CRIMSON DOT STILL ELUDES YOU…');
+            let options = {},
+                text = getSceneText('SO… THE KITTEN HAS BECOME A CAT\nYOUR PAWS GROW SWIFT, YOUR EYES SHARP\nBUT THE CRIMSON DOT STILL ELUDES YOU…');
 
             game.loop.stop();
             this.evolutionLevel += 1;
+            this.animations = game.sheets[LEVEL[this.evolutionLevel]].animations;
             soundFx('evolve');
             this.evolutionTimer = 0;
             this.evolutionTargetTime = EVOLUTION_BASE_TIME * (this.evolutionLevel + 1);
@@ -444,12 +457,17 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 setCanvasMode();
                 text = getSceneText('AT LAST, THE CRIMSON DOT IS YOURS!');
                 trackBestTime(game.gameTime);
+                options = {
+                    animation: 'captured',
+                    background: '#BBB',
+                    color: '#000'
+                };
             } else if (this.evolutionLevel > 1) {
                 setCanvasMode(CLASS_STORM);
                 text = getSceneText('IMPRESSIVE, BUT BEFORE YOU CAN ASCEND SMALL\nCREATURE, YOU MUST WEATHER THE STORM…');
             }
             // Render the cutscene
-            renderScene(text);
+            renderScene(text, options);
         },
         // Exhaust meter (0 to SLEEP_THRESHOLD)
         exhaustMeter: 0,
@@ -471,6 +489,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         // Get evolution progress as a percentage string
         getEvolutionPercent () {
             return this.evolutionTargetTime > 0
+                // eslint-disable-next-line prefer-template
                 ? Math.min(100, Math.floor((this.evolutionTimer / this.evolutionTargetTime) * 100)).toFixed(0) + '%'
                 : '0%';
         },
@@ -500,8 +519,8 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
         },
         // Method to update the visual meters
         setMeter (name, value) {
-            setElement(`#${name} b`, 'style.width', value);
-            setElement(`#${name} v`, 'innerHTML', value);
+            query(`#${name} b`).style.width = value;
+            query(`#${name} v`).innerHTML = value;
         },
         // Method to put the cat to sleep
         sleep (centerOnCouch = true) {
@@ -602,14 +621,16 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
             this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
             if (this.happinessMeter >= 100) {
-                setElement('#happiness t', 'innerHTML', 'Evolving…');
-                setElement('style.width', this.getEvolutionPercent());
-                setElement('innerHTML', this.getEvolutionPercent());
+                const evolution = query('#happiness i');
+
+                query('#happiness t').innerHTML = 'Evolving…';
+                evolution.style.width = this.getEvolutionPercent();
+                evolution.innerHTML = this.getEvolutionPercent();
             } else {
-                setElement('#happiness t', 'innerHTML', 'Happiness');
+                query('#happiness t').innerHTML = 'Happiness';
             }
-            setElement('#time v', 'innerHTML', formatTime(game.gameTime));
-            setElement('#level', 'innerHTML', LEVEL[this.evolutionLevel]);
+            query('#time v').innerHTML = formatTime(game.gameTime);
+            query('#level').innerHTML = LEVEL[this.evolutionLevel];
 
             // Handle eating state
             if (this.state === CAT_STATES.EATING) {
@@ -879,7 +900,7 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
     renderScene(getSceneText('NOTHING MAKES THIS LITTLE KITTEN HAPPIER\nTHAN CHASING THE LITTLE RED DOT :)'), {
         background: '#BBB',
         color: '#000',
-        sheet: 'kitten'
+        sheet: KITTEN
     });
 
     // Update the zoom factor and canvas dimensions on window resize
@@ -926,12 +947,14 @@ load('images/', ['couch.webp', 'food.webp', 'kitten.png', 'order.webp']).then((i
                 } else {
                     if (game.over) {
                         // Reset game state for a new game
+                        game.cat.animations = game.sheets.kitten.animations;
                         game.cat.evolutionLevel = 0;
                         game.cat.evolutionTargetTime = EVOLUTION_BASE_TIME;
                         game.cat.evolutionTimer = 0;
                         game.cat.distanceMoved = 0;
                         game.cat.exhaustMeter = 0;
                         game.cat.happinessMeter = 0;
+                        game.cat.state = CAT_STATES.AWAKE;
                         game.food.isVisible = false;
                         game.gameTime = 0;
                         game.over = false;
