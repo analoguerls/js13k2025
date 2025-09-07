@@ -936,7 +936,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
         if (!game.scene.isStopped) {
             game.scene.stop();
         }
-        // Handle pause and unpause
+        // Handle continue, pause and unpause
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
                 if (game.intro) {
@@ -965,15 +965,13 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                         game.over = false;
                     }
                     game.loop.start();
-                    if (!game.muted && !game.musicPlaying) {
-                        game.musicPlaying = true;
+                    if (!game.muted) {
                         music.start();
                     }
                 }
             } else {
                 game.loop.stop();
                 if (!game.muted) {
-                    game.musicPlaying = false;
                     music.stop();
                 }
                 // Pause scene
@@ -982,6 +980,15 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                     color: '#000',
                     sheet: LEVEL[game.cat.evolutionLevel]
                 });
+            }
+        }
+        // Mute or unmute audio
+        if (key === 'm') {
+            game.muted = !game.muted;
+            if (game.muted) {
+                music.stop();
+            } else {
+                music.start();
             }
         }
     });
