@@ -12,7 +12,7 @@ const
     zzfxR = 44100,
 
     // Common audio context
-    zzfxX = new (top.AudioContext || webkitAudioContext),
+    zzfxX = new (window.AudioContext || webkitAudioContext),
 
     // Universal entry point -- returns a AudioBufferSourceNode
     zzfx = (...t) => zzfxP(zzfxG(...t)),

@@ -95,7 +95,7 @@ const
             this.sheets[name] = SpriteSheet(config);
         },
         gameTime: 0,
-        intro: 0,
+        intro: true,
         muted: false,
         over: false,
         sheets: {}
@@ -192,7 +192,7 @@ const
         options.animation ||= 'idle';
         options.sheet ||= ORDER;
 
-        // Add a red rectangle background
+        // Add a rectangle background
         game.scene.objects.push(Sprite({
             color: options.background || '#F00',
             render () {
@@ -448,8 +448,8 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             this.evolutionLevel += 1;
             this.animations = game.sheets[LEVEL[this.evolutionLevel]].animations;
             soundFx('evolve');
-            this.evolutionTimer = 0;
             this.evolutionTargetTime = EVOLUTION_BASE_TIME * (this.evolutionLevel + 1);
+            this.happinessMeter -= (this.evolutionLevel * 25);
             // Reposition couch for new level
             positionCouch();
             if (this.evolutionLevel > 2) {
@@ -530,9 +530,8 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             // Hide food
             game.food.isVisible = false;
             // Center the cat on the couch for sleeping
-
             if (centerOnCouch) {
-                this.centerOn(game.couch, 8 * zoomFactor, -2 * zoomFactor);
+                this.centerOn(game.couch, 0, 0);
             }
         },
         // Sleep timer in seconds
@@ -559,7 +558,8 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             const
                 // Scale distances according to zoom factor
                 activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
-                evolutionSpeedBoost = 1 + this.evolutionLevel * 0.25,
+                evolutionMeter = query('#happiness i'),
+                evolutionSpeedBoost = 1 + this.evolutionLevel * 0.1,
                 maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                 maxSpeed = 5,
                 minDistance = BASE_MIN_DISTANCE * zoomFactor,
@@ -601,6 +601,10 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
 
                 // Check if evolution criteria is met
                 if (this.evolutionTimer >= this.evolutionTargetTime) {
+                    this.evolutionTimer = 0;
+                    query('#happiness t').innerHTML = 'Happiness…';
+                    evolutionMeter.style.width = this.getEvolutionPercent();
+                    evolutionMeter.innerHTML = this.getEvolutionPercent();
                     this.evolve();
                 }
             }
@@ -621,11 +625,9 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
             this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
             if (this.happinessMeter >= 100) {
-                const evolution = query('#happiness i');
-
                 query('#happiness t').innerHTML = 'Evolving…';
-                evolution.style.width = this.getEvolutionPercent();
-                evolution.innerHTML = this.getEvolutionPercent();
+                evolutionMeter.style.width = this.getEvolutionPercent();
+                evolutionMeter.innerHTML = this.getEvolutionPercent();
             } else {
                 query('#happiness t').innerHTML = 'Happiness';
             }
@@ -930,16 +932,12 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
         // Handle pause and unpause
         if (key === 'Escape' || key === 'Enter') {
             if (game.loop.isStopped) {
-                if (game.intro < 2) {
-                    const text = game.intro === 0
-                        ? getSceneText('A WISE OLD CAT APPEARS BEFORE YOU…')
-                        : getSceneText('IT HAS BEEN EONS SINCE CATS HAVE CLASPED\nTHE CRIMSON DOT IN THEIR CLAWS… DO YOU\nHAVE WHAT IT TAKES TO JOIN THE ORDER?', 'BEGIN');
-
-                    game.intro += 1;
-                    renderScene(text);
+                if (game.intro) {
+                    game.intro = false;
+                    renderScene(getSceneText('A WISE OLD CAT APPEARS BEFORE YOU…\n“IT HAS BEEN EONS SINCE CATS HAVE CLASPED\nTHE CRIMSON DOT IN THEIR CLAWS… DO YOU\nHAVE WHAT IT TAKES TO JOIN THE ORDER?”', 'BEGIN'));
                 } else if (game.ascended) {
                     game.ascended = false;
-                    game.intro = 0;
+                    game.intro = true;
                     game.over = true;
                     renderScene(getSceneText(`YOU ASCENDED IN ${formatTime(game.gameTime)}\nTHE ORDER WELCOMES YOU, BUT\nCHALLENGES YOU TO DO BETTER…`, 'TRY AGAIN'), {
                         animation: 'ascended'
@@ -977,17 +975,6 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                     color: '#000',
                     sheet: LEVEL[game.cat.evolutionLevel]
                 });
-            }
-        }
-        // Handle mute toggle
-        if (key === 'm') {
-            game.muted = !game.muted;
-            if (game.muted) {
-                game.musicPlaying = false;
-                music.stop();
-            } else if (game.loop.isStopped || !game.musicPlaying) {
-                game.musicPlaying = true;
-                music.start();
             }
         }
     });

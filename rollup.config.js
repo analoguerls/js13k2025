@@ -21,7 +21,8 @@ export default {
                 image: true
             },
             text: {
-                align: true
+                align: true,
+                newline: true
             }
         })
     ]

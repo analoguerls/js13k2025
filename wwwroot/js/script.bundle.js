@@ -1666,18 +1666,8 @@
 
       context.font = this.font;
 
-      text = this.text.split('\n');
 
 
-      if (!this._s.length && this.text.includes('\n')) {
-        let width = 0;
-        text.map(str => {
-          this._s.push(str);
-          width = Math.max(width, context.measureText(str).width);
-        });
-
-        this._w = this._fw || width;
-      }
 
       if (!this._s.length) {
         this._s.push(this.text);
