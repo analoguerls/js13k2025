@@ -362,6 +362,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
         frameWidth: TILE_SIZE,
         image: imageAssets.cat
     });
+    // Adjust frame rates for cat idle animation
     game.sheets.cat.animations.idle.frameRate = 2;
     // Reuse cat sheet for storm level
     game.sheets.storm = game.sheets.cat;
@@ -558,7 +559,6 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             const
                 // Scale distances according to zoom factor
                 activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
-                evolutionMeter = query('#happiness i'),
                 evolutionSpeedBoost = 1 + this.evolutionLevel * 0.1,
                 maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                 maxSpeed = 5,
@@ -602,9 +602,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                 // Check if evolution criteria is met
                 if (this.evolutionTimer >= this.evolutionTargetTime) {
                     this.evolutionTimer = 0;
-                    query('#happiness t').innerHTML = 'Happiness…';
-                    evolutionMeter.style.width = this.getEvolutionPercent();
-                    evolutionMeter.innerHTML = this.getEvolutionPercent();
+                    this.updateEvolutionDisplay('Happiness…', true);
                     this.evolve();
                 }
             }
@@ -625,11 +623,9 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
             this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
             if (this.happinessMeter >= 100) {
-                query('#happiness t').innerHTML = 'Evolving…';
-                evolutionMeter.style.width = this.getEvolutionPercent();
-                evolutionMeter.innerHTML = this.getEvolutionPercent();
+                this.updateEvolutionDisplay('Evolving…', true);
             } else {
-                query('#happiness t').innerHTML = 'Happiness';
+                this.updateEvolutionDisplay('Happiness');
             }
             query('#time v').innerHTML = formatTime(game.gameTime);
             query('#level').innerHTML = LEVEL[this.evolutionLevel];
@@ -836,6 +832,17 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             if (this.state !== CAT_STATES.ASLEEP && this.exhaustMeter > 0) {
                 // Recover energy at a slow rate when not moving
                 this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt);
+            }
+        },
+        updateEvolutionDisplay (text = null, updateMeters = false) {
+            const evolutionMeter = query('#happiness i');
+
+            if (text) {
+                query('#happiness t').innerHTML = text;
+            }
+            if (updateMeters) {
+                evolutionMeter.style.width = this.getEvolutionPercent();
+                evolutionMeter.innerHTML = this.getEvolutionPercent();
             }
         },
         // Initialize position to center of canvas

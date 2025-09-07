@@ -1666,8 +1666,18 @@
 
       context.font = this.font;
 
+      text = this.text.split('\n');
 
 
+      if (!this._s.length && this.text.includes('\n')) {
+        let width = 0;
+        text.map(str => {
+          this._s.push(str);
+          width = Math.max(width, context.measureText(str).width);
+        });
+
+        this._w = this._fw || width;
+      }
 
       if (!this._s.length) {
         this._s.push(this.text);
@@ -2926,6 +2936,7 @@
           frameWidth: TILE_SIZE,
           image: imageAssets.cat
       });
+      // Adjust frame rates for cat idle animation
       game.sheets.cat.animations.idle.frameRate = 2;
       // Reuse cat sheet for storm level
       game.sheets.storm = game.sheets.cat;
@@ -3122,7 +3133,6 @@
               const
                   // Scale distances according to zoom factor
                   activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
-                  evolutionMeter = query('#happiness i'),
                   evolutionSpeedBoost = 1 + this.evolutionLevel * 0.1,
                   maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                   maxSpeed = 5,
@@ -3166,9 +3176,7 @@
                   // Check if evolution criteria is met
                   if (this.evolutionTimer >= this.evolutionTargetTime) {
                       this.evolutionTimer = 0;
-                      query('#happiness t').innerHTML = 'Happiness…';
-                      evolutionMeter.style.width = this.getEvolutionPercent();
-                      evolutionMeter.innerHTML = this.getEvolutionPercent();
+                      this.updateEvolutionDisplay('Happiness…', true);
                       this.evolve();
                   }
               }
@@ -3189,11 +3197,9 @@
               this.setMeter('happiness', `${this.happinessMeter.toFixed(0)}%`);
               this.setMeter('exhaust', `${this.getStaminaPercent().toFixed(0)}%`);
               if (this.happinessMeter >= 100) {
-                  query('#happiness t').innerHTML = 'Evolving…';
-                  evolutionMeter.style.width = this.getEvolutionPercent();
-                  evolutionMeter.innerHTML = this.getEvolutionPercent();
+                  this.updateEvolutionDisplay('Evolving…', true);
               } else {
-                  query('#happiness t').innerHTML = 'Happiness';
+                  this.updateEvolutionDisplay('Happiness');
               }
               query('#time v').innerHTML = formatTime(game.gameTime);
               query('#level').innerHTML = LEVEL[this.evolutionLevel];
@@ -3400,6 +3406,17 @@
               if (this.state !== CAT_STATES.ASLEEP && this.exhaustMeter > 0) {
                   // Recover energy at a slow rate when not moving
                   this.exhaustMeter = recoveryRateCalculation(this.exhaustMeter, RECOVERY_RATE, dt);
+              }
+          },
+          updateEvolutionDisplay (text = null, updateMeters = false) {
+              const evolutionMeter = query('#happiness i');
+
+              if (text) {
+                  query('#happiness t').innerHTML = text;
+              }
+              if (updateMeters) {
+                  evolutionMeter.style.width = this.getEvolutionPercent();
+                  evolutionMeter.innerHTML = this.getEvolutionPercent();
               }
           },
           // Initialize position to center of canvas
