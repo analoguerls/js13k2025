@@ -416,3 +416,11 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+/modules/download.js
+/modules/events.js
+/modules/GameLoop.js
+/modules/init.js
+/modules/load.js
+/modules/pointer.js
+/modules/splitmix32.js
+/modules/textToArray.js
