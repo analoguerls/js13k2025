@@ -416,6 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+/modules
 /modules/download.js
 /modules/events.js
 /modules/GameLoop.js
