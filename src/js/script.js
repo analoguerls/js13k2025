@@ -698,8 +698,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                     // Reduce happiness by 10% when waking up from sleep
                     this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
                     // Reset exhaust meter based on evolution level
-                    this.exhaustMeter = 50 * (this.evolutionLevel + (this.bored ? 2 : 1));
-                    this.bored = false;
+                    this.exhaustMeter = Math.min(this.exhaustMeter, 50 * (this.evolutionLevel + 1));
                 }
 
                 // Don't process any other logic while asleep
@@ -735,7 +734,6 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.IDLE) {
                 // Check if cat should fall asleep after being idle for too long
                 if (this.state === CAT_STATES.IDLE && this.idleTimer >= IDLE_TO_SLEEP_TIMEOUT) {
-                    this.bored = true;
                     this.sleep(false);
 
                     return;

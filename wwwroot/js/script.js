@@ -308,6 +308,8 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
     const
         // Base distances in tile units
         BASE_ACTIVATION_DISTANCE = 3 * TILE_SIZE,
+        // Distance threshold to consider cat has reached the food
+        BASE_FOOD_THRESHOLD = TILE_SIZE,
         // Maximum distance before cat stops following
         BASE_MAX_FOLLOW_DISTANCE = 6 * TILE_SIZE,
         // Minimum distance to start moving toward the pointer
@@ -333,8 +335,6 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
         EXHAUST_FACTOR = 0.1,
         // Threshold for exhausted state before falling asleep
         EXHAUST_THRESHOLD = 333,
-        // Distance threshold to consider cat has reached the food
-        FOOD_THRESHOLD = TILE_SIZE,
         // Time in seconds for idle behavior
         IDLE_TIMEOUT = 1,
         // Time in seconds before cat falls asleep after being idle
@@ -560,6 +560,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                 // Scale distances according to zoom factor
                 activationDistance = BASE_ACTIVATION_DISTANCE * zoomFactor,
                 evolutionSpeedBoost = 1 + this.evolutionLevel * 0.1,
+                foodThreshold = BASE_FOOD_THRESHOLD * zoomFactor,
                 maxFollowDistance = BASE_MAX_FOLLOW_DISTANCE * zoomFactor,
                 maxSpeed = 5,
                 minDistance = BASE_MIN_DISTANCE * zoomFactor,
@@ -697,8 +698,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                     // Reduce happiness by 10% when waking up from sleep
                     this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
                     // Reset exhaust meter based on evolution level
-                    this.exhaustMeter = 50 * (this.evolutionLevel + (this.bored ? 2 : 1));
-                    this.bored = false;
+                    this.exhaustMeter = Math.min(this.exhaustMeter, 50 * (this.evolutionLevel + 1));
                 }
 
                 // Don't process any other logic while asleep
@@ -710,7 +710,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                 const toFood = calcDistance(game.food.x, game.food.y, this.x, this.y);
 
                 // If cat is close enough to food, start eating
-                if (toFood <= FOOD_THRESHOLD) {
+                if (toFood <= foodThreshold) {
                     this.startEating();
 
                     return;
@@ -734,7 +734,6 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
             if (this.state === CAT_STATES.EXHAUSTED || this.state === CAT_STATES.IDLE) {
                 // Check if cat should fall asleep after being idle for too long
                 if (this.state === CAT_STATES.IDLE && this.idleTimer >= IDLE_TO_SLEEP_TIMEOUT) {
-                    this.bored = true;
                     this.sleep(false);
 
                     return;
