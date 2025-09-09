@@ -697,7 +697,7 @@ load('images/', ['cat.webp', 'couch.webp', 'food.webp', 'kitten.webp', 'order.we
                     this.sleepTimer = 0;
                     // Reduce happiness by 10% when waking up from sleep
                     this.happinessMeter = Math.max(0, this.happinessMeter * 0.90);
-                    // Reset exhaust meter based on evolution level
+                    // Reset exhaust meter if waking from sleep
                     this.exhaustMeter = Math.min(this.exhaustMeter, 50 * (this.evolutionLevel + 1));
                 }
 
